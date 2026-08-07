@@ -3104,7 +3104,9 @@
           <div class="field-header">
             <div class="product-brand-strip" style="margin-bottom:0.75rem;">
               <a href="{% url 'dashboard-home' %}" class="dragon-link" title="Ir al inicio">
-                <img src="{% static 'football/images/2j-mark.svg' %}" alt="2J Live" class="dragon-logo" style="width:140px;height:auto;border-radius:0;background:transparent;border:none;" />
+                {% comment %}El logotipo horizontal trae su rotulo dibujado dentro y aqui al lado
+                se vuelve a escribir: se usa solo el icono, como en el resto del sistema.{% endcomment %}
+                <img src="{% static 'football/images/2j-icon.svg' %}" alt="2J Live" class="dragon-logo" style="width:44px;height:44px;border-radius:12px;background:transparent;border:none;" />
               </a>
               <div class="product-brand-strip-copy brand-live-copy">
                 <strong>2J Live</strong>

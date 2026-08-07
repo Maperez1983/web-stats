@@ -1091,16 +1091,12 @@
   </head>
   <body class="prod-commercial{% if is_player_readonly %} is-player-home{% endif %}">
     <div class="container">
-      <a class="product-brand-strip" href="{% if home_url %}{{ home_url }}{% elif workspace_entry_url %}{{ workspace_entry_url }}{% else %}{% url 'dashboard-home' %}{% endif %}" style="margin-bottom:0.55rem; text-decoration:none; color:inherit;">
-	        <div class="product-brand-strip-copy">
-	          <strong>Segunda Jugada</strong>
-	          <span>2J Player · Football Intelligence</span>
-	        </div>
-      </a>
+      {% comment %}Antes se pintaban dos marcas seguidas: este rotulo suelto y la pastilla del
+      logo de dragon_nav. Ahora es un solo bloque, el mismo que el resto del sistema.{% endcomment %}
       {% comment %}La ficha escondía los accesos del sistema (ÁREAS, Buscar, club, tema) y por eso
       parecía otra aplicación. Se ocultan SOLO cuando entra el propio jugador en modo lectura.
       {% endcomment %}
-      {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=is_player_readonly hide_dragon_logo=False hide_global_guard_widget=is_player_readonly %}
+      {% include 'football/includes/dragon_nav.html' with hide_product_shortcuts=is_player_readonly hide_dragon_logo=False hide_global_guard_widget=is_player_readonly marca_sufijo="2J Player" %}
       {% if not is_player_readonly %}{% include 'football/includes/_zone_subnav.html' with zone='equipo' %}{% endif %}
       <header>
         <div class="player-head-main">

@@ -1,0 +1,26 @@
+{% load static %}
+{% comment %}
+LA MARCA DEL PRODUCTO, EN UN SOLO SITIO.
+
+Antes cada pantalla montaba la suya y no habia dos iguales:
+
+  - La portada del entrenador y las pantallas de jugador pintaban el logotipo
+    horizontal (2j-mark.svg), que trae el rotulo YA DIBUJADO dentro del propio
+    SVG en colores de fondo oscuro: en modo claro ese rotulo desaparece, y
+    ademas se repetia porque al lado se escribia otra vez en HTML.
+  - El resto del sistema recibia, desde dragon_nav, una pastilla oscura de
+    94x94 que caia en una x distinta en cada pantalla (de 8 a 336 px) segun el
+    contenedor de la pagina, y que en varias no llegaba a alinearse ni con su
+    propio titulo.
+
+Aqui va el bloque unico: el icono (que es una pastilla cerrada y se lee igual
+sobre fondo claro que oscuro) y el rotulo escrito en HTML, que si entiende de
+temas. Quien lo incluya puede cambiar la segunda linea con `marca_sufijo`.
+{% endcomment %}
+<a class="marca2j" href="{% if can_access_staff|default:False %}{% url 'coach-detail' %}{% if active_team %}?team={{ active_team.id }}{% endif %}{% elif home_url %}{{ home_url }}{% elif workspace_entry_url %}{{ workspace_entry_url }}{% else %}{% url 'dashboard-home' %}{% endif %}" title="Ir a Inicio">
+  <img class="marca2j-icono" src="{% static 'football/images/2j-icon.svg' %}" alt="Segunda Jugada" />
+  <span class="marca2j-texto">
+    <strong>Segunda Jugada</strong>
+    <span>{{ marca_sufijo|default:"2J Club" }} · Football Intelligence</span>
+  </span>
+</a>

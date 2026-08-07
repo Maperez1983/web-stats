@@ -1002,18 +1002,17 @@ body.prod-commercial .ws-skeleton::after {
    Dragon nav + command palette (migrado desde inline CSS)
 ------------------------------------------------------------ */
 
+/* La marca ya no es una pastilla oscura de 94px flotando sobre la pagina: el
+   contenedor no pinta nada y deja que el bloque de marca (_marca_2j.html) ocupe
+   su alto natural, el mismo en todas las pantallas. */
 body.prod-commercial .dragon-nav {
-  width: 94px;
-  height: 94px;
-  border-radius: 22px;
-  border: 1px solid rgba(244, 180, 0, 0.22);
-  background: linear-gradient(135deg, rgba(11, 18, 32, 0.96), rgba(21, 38, 63, 0.96));
-  padding: 0.5rem;
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  justify-content: center;
-  box-shadow: 0 18px 36px rgba(2, 6, 23, 0.45);
-  font-size: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  margin-bottom: 0.75rem;
 }
 
 body.prod-commercial .dragon-link {
@@ -1031,6 +1030,78 @@ body.prod-commercial .dragon-link img {
   width: 100%;
   height: 100%;
   object-fit: contain;
+}
+
+/* ------------------------------------------------------------
+   Marca 2J: un solo bloque para todo el sistema
+------------------------------------------------------------ */
+
+.marca2j {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  text-decoration: none;
+  color: inherit;
+  border-radius: 14px;
+  padding: 0.1rem;
+  transition: transform 140ms ease, filter 140ms ease;
+}
+
+.marca2j:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.04);
+}
+
+.marca2j:focus-visible {
+  outline: 2px solid rgba(244, 180, 0, 0.62);
+  outline-offset: 3px;
+}
+
+.marca2j-icono {
+  display: block;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  border-radius: 12px;
+  object-fit: contain;
+}
+
+.marca2j-texto {
+  display: grid;
+  gap: 0.1rem;
+  line-height: 1.2;
+}
+
+.marca2j-texto strong {
+  font-family: var(--prod-font-display, inherit);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--prod-accent-soft, #b58900);
+}
+
+.marca2j-texto > span {
+  font-size: 0.78rem;
+  color: var(--prod-muted, #64748b);
+  white-space: nowrap;
+}
+
+:root:not([data-theme="light"]) .marca2j-texto strong {
+  color: #fff1c2;
+}
+
+@media (max-width: 640px) {
+  .marca2j-icono {
+    width: 38px;
+    height: 38px;
+  }
+  .marca2j-texto strong {
+    font-size: 0.66rem;
+  }
+  .marca2j-texto > span {
+    font-size: 0.72rem;
+  }
 }
 
 body.prod-commercial .product-nav-shortcuts {
@@ -1243,9 +1314,7 @@ body.prod-commercial .team-switcher select:focus {
 
 @media (max-width: 768px) {
   body.prod-commercial .dragon-nav {
-    width: 82px;
-    height: 82px;
-    margin: 0 auto 0.45rem;
+    margin: 0 0 0.45rem;
   }
   body.prod-commercial .product-nav-shortcuts {
     justify-content: center;
@@ -1499,10 +1568,12 @@ body.prod-commercial .cmdk-section {
   background: rgba(47, 125, 50, 0.08);
 }
 
-:root[data-theme="hc"] body.prod-commercial .dragon-nav {
-  background: #000000;
-  border-color: rgba(255, 255, 255, 0.5);
-  box-shadow: none;
+:root[data-theme="hc"] .marca2j-icono {
+  outline: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+:root[data-theme="hc"] .marca2j-texto strong {
+  color: #ffffff;
 }
 
 :root[data-theme="hc"] body.prod-commercial .product-nav-shortcuts a,

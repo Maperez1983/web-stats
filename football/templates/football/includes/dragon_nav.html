@@ -1,37 +1,11 @@
 {% load static %}
 <style>
+  /* El contenedor no pinta: la marca la monta _marca_2j.html, igual en todo el sistema. */
   .dragon-nav {
-    display: inline-flex;
+    display: flex;
     align-items: center;
     margin-bottom: 0.75rem;
   }
-  .dragon-link {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 3.4rem;
-    height: 3.4rem;
-    border-radius: 1rem;
-    overflow: hidden;
-    flex: 0 0 auto;
-  }
-  .dragon-link img {
-    display: block;
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-  }
-  @media (max-width: 640px) {
-    .dragon-link {
-      width: 2.9rem;
-      height: 2.9rem;
-    }
-  }
-  /* El logo YA era un enlace, pero no lo parecia: sin cursor ni reaccion al pasar por encima
-     nadie sabia que se podia pulsar para volver a Inicio. */
-  .dragon-nav .dragon-link { display:inline-flex; cursor:pointer; border-radius:18px; transition: transform 140ms ease, filter 140ms ease; }
-  .dragon-nav .dragon-link:hover { transform: translateY(-1px) scale(1.02); filter: brightness(1.08); }
-  .dragon-nav .dragon-link:focus-visible { outline: 2px solid rgba(244,180,0,0.62); outline-offset: 3px; }
   .nav-zone-slot:empty, .nav-areas-slot:empty { display: none; }
   /* Menu de AREAS: mismo aspecto que el de zona (pastilla + panel), para que la barra
      hable un solo idioma en vez de mezclar pastillas grandes con chips pequenos. */
@@ -62,9 +36,7 @@
 	  {% comment %}El logo va a INICIO, la misma pantalla que el boton Inicio de la barra. Antes
 	  apuntaba al panel del club, que no es donde uno espera aterrizar al pulsar el logo. Para
 	  quien no sea cuerpo tecnico se mantiene su propia entrada.{% endcomment %}
-	  <a href="{% if can_access_staff|default:False %}{% url 'coach-detail' %}{% if active_team %}?team={{ active_team.id }}{% endif %}{% elif home_url %}{{ home_url }}{% elif workspace_entry_url %}{{ workspace_entry_url }}{% else %}{% url 'dashboard-home' %}{% endif %}" class="dragon-link" title="Ir a Inicio">
-	    <img src="{% static 'football/images/2j-icon.svg' %}" alt="Segunda Jugada · 2J" loading="lazy" />
-	  </a>
+	  {% include 'football/includes/_marca_2j.html' %}
 </div>
 {% endif %}
 {% if request.user.is_authenticated %}
