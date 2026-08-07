@@ -14345,17 +14345,17 @@ class SessionsPlanningTests(TestCase):
         Tareas/Sesiones/Microciclos. Ahora es una fila plana y cada pestaña se marca en la suya.
         """
         import re as _re
-        esperadas = ['Sesiones', 'Microciclos', 'Tareas', 'Crear', 'Importar']
+        esperadas = ['Sesiones', 'Microciclos', 'Biblioteca de tareas', 'Importar']
         for tab, activa in (('sessions', 'Sesiones'), ('microcycles', 'Microciclos'),
-                            ('library', 'Tareas'), ('create', 'Crear'), ('import', 'Importar')):
+                            ('library', 'Biblioteca de tareas'), ('import', 'Importar')):
             with self.subTest(pestana=tab):
                 html = self.client.get(
                     reverse('sessions'), {'tab': tab, 'team': self.team.id}
                 ).content.decode('utf-8', 'replace')
                 i = html.index('id="planner-tabs"')
                 trozo = html[i:i + 2600]
-                self.assertEqual(_re.findall(r'>([^<>]{3,14})</a>', trozo)[:5], esperadas)
-                marcada = _re.findall(r'is-active[^>]*>([^<>]{3,14})</a>', trozo)[:1]
+                self.assertEqual(_re.findall(r'>([^<>]{3,24})</a>', trozo)[:4], esperadas)
+                marcada = _re.findall(r'is-active[^>]*>([^<>]{3,24})</a>', trozo)[:1]
                 self.assertEqual(marcada, [activa], f'{tab} deberia marcar {activa}')
 
     def test_entrar_en_una_biblioteca_ensena_carpetas_por_tipo_no_tareas(self):
@@ -14475,22 +14475,35 @@ class SessionsPlanningTests(TestCase):
         self.assertNotIn('Tipo:', tarjeta, 'el tipo ya lo dice la carpeta por la que has entrado')
         self.assertNotIn('Fase:', tarjeta, 'y la fase repetia la misma palabra')
 
-    def test_crear_ofrece_lo_que_promete_y_no_una_puerta_a_tactica(self):
-        """La portada de "Crear" era solo un atajo llamado "Pizarra libre" que iba a Tactica.
+    def test_no_hay_dos_bloques_de_crear_ni_atajo_a_tactica(self):
+        """El bloque "¿Que quieres crear?" vive UNA vez, encima de las pestañas.
 
-        Tactica ya es su propia zona en el menu: era una cuarta puerta al mismo lienzo, con un
-        nombre que no existia en ningun otro sitio. Ahora la pestaña ofrece Tarea, Sesion y
-        Microciclo, que es lo que dice su nombre.
+        La pestaña "Crear" tenia por portada un atajo llamado "Pizarra libre" que iba a Tactica
+        -que ya es su propia zona-. Al sustituirlo por Tarea/Sesion/Microciclo quedaron DOS bloques
+        de crear en la misma pantalla, porque arriba ya habia uno con contadores. Ahora la pestaña
+        se quita de la fila y solo alberga los formularios; se entra por el bloque de arriba.
         """
-        html = self.client.get(
-            reverse('sessions'), {'tab': 'create', 'team': self.team.id}
+        pagina = self.client.get(
+            reverse('sessions'), {'tab': 'sessions', 'team': self.team.id}
         ).content.decode('utf-8', 'replace')
-        ini = html.index('data-tab="create"')
-        panel = html[ini:html.index('class="tab-panel', ini + 10)]
 
+        ini = pagina.index('id="planner-tabs"')
+        fila = pagina[ini:ini + 2600]
+        self.assertNotIn('>Crear</a>', fila, 'la pestaña Crear se quita de la fila')
+
+        panel_ini = pagina.index('data-tab="create"')
+        panel = pagina[panel_ini:pagina.index('class="tab-panel', panel_ini + 10)]
         self.assertNotIn('Pizarra libre', panel, 'Tactica ya tiene su zona en el menu')
-        for opcion in ('create_page=task', 'create_page=session', 'create_page=microcycle'):
-            self.assertIn(opcion, panel, f'falta la opcion {opcion}')
+        self.assertNotIn('¿Qué quieres crear?', panel, 'ese bloque ya esta encima de las pestañas')
+
+        # Y los formularios siguen siendo alcanzables por su URL (los botones de arriba llevan ahi).
+        for pagina_crear in ('task', 'session', 'microcycle'):
+            with self.subTest(crear=pagina_crear):
+                r = self.client.get(
+                    reverse('sessions'),
+                    {'tab': 'create', 'create_page': pagina_crear, 'team': self.team.id},
+                )
+                self.assertEqual(r.status_code, 200)
 
     def test_update_library_task_does_not_wipe_unposted_fields_on_rename(self):
         session = TrainingSession.objects.create(

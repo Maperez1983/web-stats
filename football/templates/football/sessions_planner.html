@@ -2237,12 +2237,13 @@
 			      colgando de «Biblioteca», Tareas/Sesiones/Microciclos. O sea que la pantalla de
 			      Sesiones vivia DENTRO de una pestaña llamada Biblioteca, y «Biblioteca» nombraba a la
 			      vez esa pestaña, la pagina del menu y los recursos de la pizarra. Cada nombre dice
-			      ahora lo que es, y el orden es el del trabajo: primero lo de esta semana.{% endcomment %}
+			      ahora lo que es, y el orden es el del trabajo: primero lo de esta semana. La de tareas se
+			      llama "Biblioteca de tareas" y no "Tareas": al acortarla se perdio la palabra que el
+			      entrenador busca, y dejo de encontrar por donde se iba a la biblioteca.{% endcomment %}
 			      <div class="tabs" id="planner-tabs">
 			        <a class="tab-link {% if active_tab == 'sessions' %}is-active{% endif %}" href="?tab=sessions&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Sesiones</a>
 			        <a class="tab-link {% if active_tab == 'microcycles' %}is-active{% endif %}" href="?tab=microcycles&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Microciclos</a>
-			        <a class="tab-link {% if main_tab == 'library' and active_tab == 'library' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Tareas</a>
-			        <a class="tab-link {% if main_tab == 'create' %}is-active{% endif %}" href="?tab=create&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Crear</a>
+			        <a class="tab-link {% if main_tab == 'library' and active_tab == 'library' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Biblioteca de tareas</a>
 			        <a class="tab-link {% if main_tab == 'import' %}is-active{% endif %}" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Importar</a>
 			      </div>
 
@@ -2258,28 +2259,13 @@
                       {% else %}Crear
                     {% endif %}
                   </h2>
+				          {% comment %}Esta pestaña ya NO tiene portada: el bloque "¿Que quieres crear?" que hay
+				          encima de las pestañas hace justo eso, con contadores y explicacion, y sus botones llevan
+				          a estos mismos formularios. Tener las dos era decir lo mismo dos veces en la misma
+				          pantalla. La pestaña se quita de la fila y aqui solo viven los formularios.{% endcomment %}
 				          {% if not create_page %}
-				          {% comment %}La portada de "Crear" era UNICAMENTE un atajo llamado "Pizarra libre" que
-				          llevaba a Tactica. Tactica ya es su propia zona en el menu, asi que era una cuarta
-				          puerta al mismo lienzo, con un nombre que no existe en ningun otro sitio: nadie sabia
-				          que era. Fuera el atajo, y la pestaña pasa a ofrecer lo que promete su nombre.{% endcomment %}
-				          <p class="meta" style="margin-top:0;">¿Qué quieres crear?</p>
-					          <div class="folder-grid" aria-label="Crear" style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px;">
-				            <a class="folder-card" href="?tab=create&create_page=task&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">
-				              <strong>🧩 Tarea</strong>
-				              <span>Pizarra y ficha</span>
-				            </a>
-				            <a class="folder-card" href="?tab=create&create_page=session&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">
-				              <strong>📆 Sesión</strong>
-				              <span>Un entrenamiento del día</span>
-				            </a>
-				            <a class="folder-card" href="?tab=create&create_page=microcycle&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">
-				              <strong>🗓️ Microciclo</strong>
-				              <span>La semana entera</span>
-				            </a>
-			              </div>
                   {% else %}
-                  <p class="meta" style="margin-top:0;"><a class="button" href="?tab=create&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Volver a presentación</a></p>
+                  <p class="meta" style="margin-top:0;"><a class="button" href="?tab=sessions&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">← Volver a Sesiones</a></p>
                   {% if create_page == 'task' %}
                   <div class="create-actions-panel">
                     <h3>Tarea</h3>
