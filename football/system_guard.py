@@ -5590,6 +5590,11 @@ def _update_metrics(workspace, *, report: dict, response: dict, llm_used: bool, 
 
 
 def _run_management_command(command_name: str, **kwargs) -> dict:
+    # Un comando de mantenimiento (reindexar, migrar, recalcular) NO puede ejecutarse porque
+    # alguien haya escrito una pregunta en el chat. Es la decima cosa cara que aparecia en
+    # ese camino. Con el guardian en modo accion se sigue pudiendo, que es su sitio.
+    if not sondas_caras_permitidas():
+        return {**_OMITIDA, "command": str(command_name or "")[:60]}
     stdout = StringIO()
     stderr = StringIO()
     try:
