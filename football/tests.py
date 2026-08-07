@@ -14469,6 +14469,12 @@ class SessionsPlanningTests(TestCase):
         self.assertNotIn('<strong>{}</strong>'.format(tarea.created_at.strftime('%d/%m/%Y')), html,
                          'la fecha no va en negrita')
 
+        # Dentro de la carpeta "Rondo / posesion", repetir el tipo en la tarjeta sobra.
+        i = html.index('Rondo sin objetivo')
+        tarjeta = html[max(0, i - 3000):i + 1200]
+        self.assertNotIn('Tipo:', tarjeta, 'el tipo ya lo dice la carpeta por la que has entrado')
+        self.assertNotIn('Fase:', tarjeta, 'y la fase repetia la misma palabra')
+
     def test_update_library_task_does_not_wipe_unposted_fields_on_rename(self):
         session = TrainingSession.objects.create(
             microcycle=self.microcycle,

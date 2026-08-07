@@ -4960,18 +4960,23 @@ agrupado aparecen DENTRO de una carpeta, que es cuando sirven de algo. No se qui
                  final de la linea y en el mismo tono que el resto. La fecha detectada en el texto
                  se movio a "Detalle y metricas": era una tercera fecha en la misma frase.{% endcomment %}
               <p class="meta">{{ t.get_block_display }} · {{ t.duration_minutes }}' · {{ t.created_at|date:"d/m/Y" }}</p>
+              {% comment %}Solo lo que NO sabes ya por donde has entrado. Salian "Tipo: posesion" y
+                 "Fase: posesion" -la misma palabra dos veces- estando dentro de la carpeta
+                 "Rondo / posesion", que lo dice una tercera. Y la banda de duracion repetia los
+                 minutos que estan en la linea de arriba. Se queda lo que ayuda a descartar: si
+                 necesita revision y para cuantos jugadores es. El resto, en Detalle y metricas.{% endcomment %}
               <div class="task-kpis">
                 {% if t.needs_review %}<span class="badge" style="border-color:rgba(248,113,113,0.65); color:#fecaca;">Revisión</span>{% endif %}
-                {% for item in t.exercise_types|slice:":2" %}<span class="badge">Tipo: {{ item }}</span>{% endfor %}
-                {% for phase in t.phase_tags|slice:":2" %}<span class="badge">Fase: {{ phase }}</span>{% endfor %}
                 {% if t.players_band %}<span class="badge">{{ t.players_band }}</span>{% endif %}
-                {% if t.duration_band %}<span class="badge">{{ t.duration_band }}</span>{% endif %}
               </div>
               {% if t.analysis_meta %}
               <details style="margin-bottom:0.55rem;">
                 <summary class="button secondary" style="display:inline-flex; width:max-content;">Detalle y métricas</summary>
                 <div style="display:flex; gap:0.35rem; flex-wrap:wrap; margin-top:0.55rem;">
                   {% if t.reference_date_is_detected %}<span class="badge">Fecha en el texto: {{ t.reference_date|date:"d/m/Y" }}</span>{% endif %}
+                  {% for item in t.exercise_types|slice:":2" %}<span class="badge">Tipo: {{ item }}</span>{% endfor %}
+                  {% for phase in t.phase_tags|slice:":2" %}<span class="badge">Fase: {{ phase }}</span>{% endfor %}
+                  {% if t.duration_band %}<span class="badge">{{ t.duration_band }}</span>{% endif %}
                   {% if t.completeness_score %}<span class="badge">Completa {{ t.completeness_score }}%</span>{% endif %}
                   {% if t.analysis_meta.quality_score %}<span class="badge">Calidad {{ t.analysis_meta.quality_score }}/100</span>{% endif %}
                   {% if t.analysis_confidence.overall %}<span class="badge">Confianza {{ t.analysis_confidence.overall }}/100</span>{% endif %}
