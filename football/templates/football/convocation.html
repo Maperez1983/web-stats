@@ -1262,11 +1262,32 @@
           whatsappText.value = payload.whatsapp_text;
         }
         updatePdfState();
+        // El servidor tiene la última palabra sobre quién puede jugar. Si ha quitado a alguien
+        // (lesión, sanción, fuera de plantilla), la selección de la pantalla se pone al día:
+        // antes el contador seguía diciendo 18 mientras la lista guardada tenía 17.
+        if (Array.isArray(payload.player_ids)) {
+          selectedSet.clear();
+          payload.player_ids.forEach((id) => selectedSet.add(String(id)));
+          normalizeRoles();
+          syncCardStates();
+          renderSelected();
+        }
         if (payload.pending_convocation) {
           showMessage('Próximo partido guardado. Convocatoria pendiente.', 'warn');
           return false;
         }
-        if (payload.injury_warning_count) {
+        const fuera = Array.isArray(payload.removed) ? payload.removed : [];
+        if (fuera.length) {
+          const detalle = fuera
+            .slice(0, 4)
+            .map((j) => `${j.name} (${j.reason_label || 'no puede jugar'})`)
+            .join(', ');
+          const resto = fuera.length > 4 ? ` y ${fuera.length - 4} más` : '';
+          showMessage(
+            `Convocatoria guardada (${payload.count} jugadores). Fuera: ${detalle}${resto}.`,
+            'warn'
+          );
+        } else if (payload.injury_warning_count) {
           showMessage(
             `Guardada (${payload.count}). Aviso lesión: ${payload.injury_warning_count}.`,
             'warn'
@@ -1428,6 +1449,17 @@
       syncCardStates();
       renderSelected();
       updatePdfState();
+
+      // Si alguien de la lista guardada se ha lesionado desde entonces, ya no viene marcado:
+      // se dice al abrir, en vez de que el contador baje solo al guardar.
+      const caidosDeLaLista = {{ caidos_de_la_lista_json|default:"[]"|safe }} || [];
+      if (caidosDeLaLista.length) {
+        const cuantos = caidosDeLaLista.length;
+        showMessage(
+          `${caidosDeLaLista.join(', ')} ${cuantos === 1 ? 'estaba' : 'estaban'} en la lista y ya no ${cuantos === 1 ? 'puede' : 'pueden'} competir: ${cuantos === 1 ? 'lo he quitado' : 'los he quitado'} de la selección.`,
+          'warn'
+        );
+      }
     </script>
   </body>
 </html>
