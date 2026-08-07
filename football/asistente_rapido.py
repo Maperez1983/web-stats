@@ -56,7 +56,10 @@ _VERBOS_SUGERIR = ("sugiere", "sugiereme", "recomienda", "recomiendame", "propon
 
 # Palabras de relleno al principio del resto ("a la biblioteca" -> "biblioteca").
 _RELLENO = ("a", "al", "la", "el", "los", "las", "de", "del", "un", "una", "unas", "unos",
-            "por", "para", "sobre", "mi", "mis")
+            "por", "para", "sobre", "mi", "mis",
+            # "sugiereme TAREAS DE finalizacion" -> lo que importa es "finalizacion". Sin quitar
+            # estas, el recomendador puntuaba contra "tareas" y "de" y no encontraba nada.
+            "tarea", "tareas", "ejercicio", "ejercicios", "sesion", "sesiones", "trabajo")
 
 
 def _limpiar_resto(texto: str) -> str:
