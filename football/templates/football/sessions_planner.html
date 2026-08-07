@@ -4954,12 +4954,12 @@ agrupado aparecen DENTRO de una carpeta, que es cuando sirven de algo. No se qui
 	            </div>
             <div class="task-content">
               <h3 class="task-title">{{ t.title }}</h3>
-              <p class="task-objective">{{ t.objective_summary|truncatechars:140 }}</p>
-              {# La fecha grande era la DETECTADA en el texto de la tarea, no la de creacion: una
-                 tarea creada hoy aparecia con la fecha que llevara escrita dentro (21/07), y el
-                 "Fecha detectada" de al lado no bastaba para entenderlo. Ahora manda la de
-                 creacion y la detectada se enseña aparte, dicha con todas las letras. #}
-              <p class="meta"><strong>{{ t.created_at|date:"d/m/Y" }}</strong>{% if t.reference_date_is_detected %} · fecha en el contenido: {{ t.reference_date|date:"d/m/Y" }}{% endif %} · {{ t.get_block_display }} · {{ t.duration_minutes }}'</p>
+              {% if t.objective_summary %}<p class="task-objective">{{ t.objective_summary|truncatechars:140 }}</p>{% endif %}
+              {% comment %}La fecha ya no va la primera ni en negrita: al elegir una tarea de la
+                 biblioteca lo que importa es QUE es y cuanto dura, no cuando se creo. Se queda al
+                 final de la linea y en el mismo tono que el resto. La fecha detectada en el texto
+                 se movio a "Detalle y metricas": era una tercera fecha en la misma frase.{% endcomment %}
+              <p class="meta">{{ t.get_block_display }} · {{ t.duration_minutes }}' · {{ t.created_at|date:"d/m/Y" }}</p>
               <div class="task-kpis">
                 {% if t.needs_review %}<span class="badge" style="border-color:rgba(248,113,113,0.65); color:#fecaca;">Revisión</span>{% endif %}
                 {% for item in t.exercise_types|slice:":2" %}<span class="badge">Tipo: {{ item }}</span>{% endfor %}
@@ -4971,6 +4971,7 @@ agrupado aparecen DENTRO de una carpeta, que es cuando sirven de algo. No se qui
               <details style="margin-bottom:0.55rem;">
                 <summary class="button secondary" style="display:inline-flex; width:max-content;">Detalle y métricas</summary>
                 <div style="display:flex; gap:0.35rem; flex-wrap:wrap; margin-top:0.55rem;">
+                  {% if t.reference_date_is_detected %}<span class="badge">Fecha en el texto: {{ t.reference_date|date:"d/m/Y" }}</span>{% endif %}
                   {% if t.completeness_score %}<span class="badge">Completa {{ t.completeness_score }}%</span>{% endif %}
                   {% if t.analysis_meta.quality_score %}<span class="badge">Calidad {{ t.analysis_meta.quality_score }}/100</span>{% endif %}
                   {% if t.analysis_confidence.overall %}<span class="badge">Confianza {{ t.analysis_confidence.overall }}/100</span>{% endif %}

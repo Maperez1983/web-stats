@@ -14439,6 +14439,36 @@ class SessionsPlanningTests(TestCase):
         huerfana.refresh_from_db()
         self.assertEqual(huerfana.task_family, 'circuito', 'el tipo no puede borrarse al guardar')
 
+    def test_la_tarjeta_de_tarea_no_lleva_relleno_ni_la_fecha_en_grande(self):
+        """Una tarjeta de biblioteca dice QUE es, no cuando se creo ni que le falta.
+
+        Ponia "Sin objetivo extraido todavia." en cada tarea a medio catalogar, y la fecha en
+        negrita como segunda linea. Ni una cosa ni la otra ayudan a elegir una tarea.
+        """
+        from football.library_repositories import LIBRARY_MICROCYCLE_MARKER
+
+        micro = TrainingMicrocycle.objects.create(
+            team=self.team, title='Biblioteca general',
+            week_start=date(2000, 1, 10), week_end=date(2000, 1, 16),
+            notes=LIBRARY_MICROCYCLE_MARKER,
+        )
+        sesion = TrainingSession.objects.create(
+            microcycle=micro, session_date=date(2000, 1, 11), focus='Biblioteca', duration_minutes=90,
+        )
+        tarea = SessionTask.objects.create(session=sesion, title='Rondo sin objetivo', duration_minutes=15)
+        SessionTask.objects.filter(id=tarea.id).update(task_family='rondo')
+
+        html = self.client.get(
+            reverse('sessions'),
+            {'tab': 'library', 'team': self.team.id, 'lib': 'general', 'family': 'rondo'},
+        ).content.decode('utf-8', 'replace')
+
+        self.assertIn('Rondo sin objetivo', html, 'la tarea sale')
+        self.assertNotIn('Sin objetivo extraído todavía', html,
+                         'no se escribe una frase para decir que no hay nada')
+        self.assertNotIn('<strong>{}</strong>'.format(tarea.created_at.strftime('%d/%m/%Y')), html,
+                         'la fecha no va en negrita')
+
     def test_update_library_task_does_not_wipe_unposted_fields_on_rename(self):
         session = TrainingSession.objects.create(
             microcycle=self.microcycle,

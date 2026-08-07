@@ -187,7 +187,10 @@ def prepare_task_library(
                 multiline=True,
                 max_len=240,
             )
-        task.objective_summary = objective_summary or 'Sin objetivo extraído todavía.'
+        # Sin objetivo NO se escribe una frase diciendolo: en una biblioteca con tareas a
+        # medio catalogar, 'Sin objetivo extraido todavia.' se repetia tarjeta tras tarjeta y
+        # solo ensuciaba. Si no hay, la linea no se pinta.
+        task.objective_summary = objective_summary or ''
         card_summary = str(
             task.analysis_summary or task_sheet.get('description') or task.objective_summary or ''
         ).strip()
