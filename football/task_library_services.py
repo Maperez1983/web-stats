@@ -275,7 +275,7 @@ def sanitize_task_text(value, multiline=True, max_len=None):
     )
 
 
-def asegurar_copia_ligera(tasks, *, lote=25, maximo=100):
+def asegurar_copia_ligera(tasks, *, lote=25, maximo=150):
     """Rellena `task_layout_light` de las tareas del listado que aun no la tengan.
 
     Por que hace falta: la copia ligera solo se deriva en `SessionTask.save()`, asi que las
@@ -313,17 +313,28 @@ def asegurar_copia_ligera(tasks, *, lote=25, maximo=100):
         filas = SessionTask.objects.filter(id__in=trozo).values_list('id', 'tactical_layout')
         for tid, layout in filas:
             try:
-                porId[tid] = build_layout_light(layout)
+                light = build_layout_light(layout)
             except Exception:
-                porId[tid] = {}
+                light = {}
+            # Una tarea sin lienzo da una copia ligera vacia, y una copia vacia se volveria a
+            # considerar pendiente en cada visita: se repararia eternamente. Se deja `meta` vacia,
+            # que es exactamente lo que devolveria leer el layout completo.
+            porId[tid] = light if light else {'meta': {}}
 
+    # En bloque, no fila a fila: escribir una por una anadia tantas consultas como tareas
+    # reparaba -100 UPDATE en una visita-, que es justo el problema que viene a quitar.
+    # `bulk_update` no pasa por `save()`, asi que no arrastra sus efectos (mover blobs de
+    # portada, tocar cover_present, disparar senales): igual que `manage.py rellenar_guiones`.
     escritas = 0
-    for tid, light in porId.items():
-        try:
-            SessionTask.objects.filter(id=tid).update(task_layout_light=light)
-            escritas += 1
-        except Exception:
-            continue
+    try:
+        SessionTask.objects.bulk_update(
+            [SessionTask(id=tid, task_layout_light=light) for tid, light in porId.items()],
+            ['task_layout_light'],
+            batch_size=lote,
+        )
+        escritas = len(porId)
+    except Exception:
+        escritas = 0
 
     # Se deja tambien en los objetos que ya estan en memoria: si no, esta misma peticion
     # seguiria pidiendo `meta` y volveria a des-diferir el canvas fila a fila.
