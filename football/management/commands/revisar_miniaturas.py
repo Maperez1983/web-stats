@@ -11,10 +11,41 @@ Por eso este comando no se conforma con mirar la columna: ABRE el fichero de una
     python3 manage.py revisar_miniaturas
     python3 manage.py revisar_miniaturas --team 3 --muestra 60
 """
+import io
+
 from django.core.management.base import BaseCommand
 
 from football.library_repositories import is_library_session
 from football.models import SessionTask
+
+
+def es_cesped_pelado(crudo):
+    """¿La miniatura es un campo vacío? Se mide lo que NO es hierba.
+
+    Una tarea dibujada tiene conos, fichas y flechas: en la imagen eso son píxeles que no son
+    verdes y píxeles claros. Un campo pelado no tiene ninguno de los dos.
+
+    Se mide a 320px de ancho, no a 60: encogiendo más, las líneas del campo y las fichas se
+    funden con la hierba y hasta una tarea llena parece vacía. Con estos números, medidos sobre
+    imágenes del propio proyecto: tarea con fichas 0.057/0.036, campo vacío 0.002/0.016,
+    hierba sola 0.000/0.000.
+    """
+    try:
+        from PIL import Image
+
+        img = Image.open(io.BytesIO(crudo)).convert("RGB")
+        if not img.width:
+            return False
+        img = img.resize((320, max(1, int(img.height * 320 / img.width))))
+        pixeles = list(img.getdata())
+        if not pixeles:
+            return False
+        n = len(pixeles)
+        no_verde = sum(1 for r, g, b in pixeles if not (g > r + 10 and g > b + 10))
+        claros = sum(1 for r, g, b in pixeles if min(r, g, b) > 140)
+        return (no_verde / n) <= 0.02 and (claros / n) <= 0.02
+    except Exception:
+        return False
 
 
 class Command(BaseCommand):
@@ -110,31 +141,43 @@ class Command(BaseCommand):
             self.stdout.write(f"\n=== abriendo {min(muestra, len(con_miniatura))} miniaturas de verdad ===")
             ok = 0
             vacias = 0
+            cesped_pelado = 0
+            peladas_ids = []
             perdidas = []
             for tarea in con_miniatura[:muestra]:
                 campo = tarea.task_preview_image
                 try:
                     campo.open("rb")
                     try:
-                        trozo = campo.read(2048) or b""
+                        crudo = campo.read() or b""
                     finally:
                         try:
                             campo.close()
                         except Exception:
                             pass
-                    if trozo:
+                    if crudo:
                         ok += 1
+                        if es_cesped_pelado(crudo):
+                            cesped_pelado += 1
+                            peladas_ids.append(tarea.id)
                     else:
                         vacias += 1
                         perdidas.append((tarea.id, campo.name, "vacía (0 bytes)"))
                 except Exception as exc:
                     perdidas.append((tarea.id, getattr(campo, "name", "?"), f"{type(exc).__name__}"))
             self.stdout.write(f"  {ok:>5}  se abren y traen datos")
+            if cesped_pelado:
+                self.stdout.write(self.style.WARNING(
+                    f"  {cesped_pelado:>5}  ...pero son CÉSPED PELADO: se ven, y no hay nada dibujado"
+                ))
             self.stdout.write(f"  {vacias:>5}  existen pero están VACÍAS")
             self.stdout.write(f"  {len(perdidas) - vacias:>5}  NO se pueden abrir  <-- la tarjeta sale rota")
             for tid, nombre, motivo in perdidas[:12]:
                 self.stdout.write(f"    {tid:>6}  {motivo}  {nombre}")
-            if not perdidas:
+            if peladas_ids:
+                self.stdout.write("  ids de las peladas (para volver a dibujarlas):")
+                self.stdout.write("  " + ", ".join(str(i) for i in peladas_ids[:60]))
+            if not perdidas and not cesped_pelado:
                 self.stdout.write(self.style.SUCCESS(
                     "  Las miniaturas están bien: si las ves en gris, el problema es al servirlas."
                 ))
