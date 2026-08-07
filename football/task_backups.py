@@ -128,7 +128,10 @@ def write_task_backup(task, *, kind: str, reason: str = 'save', actor_username: 
         db_path = ''
 
     # 2) Storage (si está disponible). Es útil para adjuntos legacy y exportación.
-    raw = json.dumps(payload, ensure_ascii=False, indent=2).encode('utf-8')
+    # Sin `indent=2`: la copia de seguridad lleva el lienzo entero de la tarea y sangrarlo la
+    # engorda ~30% en cada guardado. Nadie la lee a ojo -para restaurar se usa la fila de BD-,
+    # asi que se escribe compacta.
+    raw = json.dumps(payload, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
     try:
         default_storage.save(path, ContentFile(raw))
         _prune_backups(prefix, keep_last=keep_last)
