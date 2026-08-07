@@ -14534,6 +14534,34 @@ class SessionsPlanningTests(TestCase):
         ).content.decode('utf-8', 'replace')
         self.assertIn('id="planner-tabs"', formulario)
 
+    def test_la_portada_enseña_una_tarea_montada_con_los_recursos_de_verdad(self):
+        """La portada era tres cajas de texto. Ahora enseña el producto.
+
+        La muestra no es una foto de banco: es cesped HD del propio proyecto con las chapas del
+        club, los conos, el balon y la porteria que estan dentro del editor. Y va sin
+        loading="lazy": esta arriba del todo y en pestaña de fondo una imagen diferida no carga.
+        """
+        import os
+
+        from django.conf import settings
+
+        portada = self.client.get(
+            reverse('sessions'), {'team': self.team.id}
+        ).content.decode('utf-8', 'replace')
+
+        self.assertIn('muestra_tarea_recursos.jpg', portada, 'falta la muestra en la portada')
+        i = portada.index('muestra_tarea_recursos.jpg')
+        etiqueta = portada[max(0, i - 400):i + 400]
+        self.assertNotIn('loading="lazy"', etiqueta, 'arriba del todo no puede ir diferida')
+        self.assertIn('alt="', etiqueta, 'la muestra necesita alternativa de texto')
+
+        # Y el fichero tiene que existir: un src roto deja un hueco gris y nadie se entera.
+        ruta = os.path.join(
+            settings.BASE_DIR, 'football', 'static', 'football', 'images', 'task_builder',
+            'muestra_tarea_recursos.jpg',
+        )
+        self.assertTrue(os.path.exists(ruta), f'no existe {ruta}')
+
     def test_update_library_task_does_not_wipe_unposted_fields_on_rename(self):
         session = TrainingSession.objects.create(
             microcycle=self.microcycle,

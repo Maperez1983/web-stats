@@ -339,6 +339,58 @@
         color: var(--prod-muted);
         line-height:1.45;
       }
+      /* Muestra de la portada: una tarea montada con los recursos de verdad de la pizarra.
+         La imagen NO decora, enseña el producto; por eso lleva pie y no se recorta el alto en
+         movil (ahi baja a 118px y sigue leyendose el rondo, los conos y la porteria). */
+      .muestra-tarea {
+        position: relative;
+        margin: 0 0 1rem;
+        border-radius: 14px;
+        overflow: hidden;
+        border: 1px solid rgba(148,163,184,.28);
+        background: #14532d;
+        line-height: 0;
+      }
+      /* Sin recorte: la banda esta compuesta para verse ENTERA (rondo, conos y porteria). Con
+         object-fit:cover se comia la fila de conos de arriba y de abajo. */
+      .muestra-tarea img {
+        display: block;
+        width: 100%;
+        height: auto;
+        aspect-ratio: 1600 / 340;
+      }
+      .muestra-tarea figcaption {
+        position: absolute;
+        left: 0; right: 0; bottom: 0;
+        padding: 1.6rem .9rem .6rem;
+        line-height: 1.35;
+        font-size: .82rem;
+        color: #f8fafc;
+        background: linear-gradient(to top, rgba(2,10,6,.86), rgba(2,10,6,0));
+      }
+      .muestra-tarea figcaption strong { color: #ffffff; }
+      .muestra-tarea figcaption span { color: rgba(226,232,240,.86); }
+      /* En movil la banda entera mide 69px de alto: no se ve nada y el pie la tapa del todo. Se
+         enseña solo el principio (el rondo y los conos) y el pie baja debajo, como texto normal. */
+      @media (max-width: 720px) {
+        .muestra-tarea img {
+          aspect-ratio: auto;
+          height: 132px;
+          object-fit: cover;
+          object-position: 0% center;
+        }
+        .muestra-tarea figcaption {
+          position: static;
+          padding: .5rem .7rem .6rem;
+          background: none;
+          font-size: .76rem;
+          line-height: 1.4;
+          color: var(--prod-muted);
+        }
+        .muestra-tarea figcaption strong,
+        .muestra-tarea figcaption span { color: inherit; }
+        .muestra-tarea figcaption strong { color: var(--prod-text); }
+      }
       .tabs {
         display: flex;
         flex-wrap: nowrap;
@@ -2188,6 +2240,20 @@
       <section class="panel intro-strip">
         <h2>¿Qué quieres crear?</h2>
         <p class="meta" style="margin:-0.1rem 0 0.85rem;">De lo pequeño a lo grande: las <strong>tareas</strong> se montan en una <strong>sesión</strong>, y las sesiones forman el <strong>microciclo</strong> de la semana.</p>
+        {% comment %}La muestra no es adorno de banco de imagenes: el cesped es el mismo campo HD
+        del proyecto y las fichas son las chapas del club, los conos, el balon y la porteria que
+        estan dentro del editor. Se lee de izquierda a derecha como se lee una tarea.{% endcomment %}
+        <figure class="muestra-tarea">
+          <img src="{% static 'football/images/task_builder/muestra_tarea_recursos.jpg' %}"
+               alt="Rondo, conducción entre conos y finalización a portería, montados con las chapas del club sobre césped real"
+               {% comment %}Sin loading="lazy": esta arriba del todo y, en pestaña de fondo, una
+               imagen diferida no llega a cargar nunca (ya paso con los avatares).{% endcomment %}
+               width="1600" height="340" decoding="async">
+          <figcaption>
+            <strong>Así se monta una tarea.</strong>
+            <span>Las chapas de tu club, conos, balones y porterías sobre césped real: rondo, conducción y finalización.</span>
+          </figcaption>
+        </figure>
         <div class="workflow-grid flow-steps" style="margin-bottom:0;">
           <div class="workflow-card">
             <div class="workflow-step"><span class="wf-ico" aria-hidden="true">🎯</span> Tarea{% if task_library %} · <span class="wf-count">{{ task_library|length }} en biblioteca</span>{% endif %}</div>
