@@ -21,7 +21,7 @@ weasyprint==57.0
 stripe==9.7.0
 # WeasyPrint 57.x requiere pydyf 0.10.x (firma: PDF(version, identifier)).
 # Si pydyf es 0.11+ aparece: `TypeError: __init__() takes 1 positional argument but 3 were given`.
-pydyf==0.10.0
+pydyf==0.12.1
 playwright==1.44.0
 boto3==1.42.73
 django-storages==1.14.6
