@@ -14505,6 +14505,35 @@ class SessionsPlanningTests(TestCase):
                 )
                 self.assertEqual(r.status_code, 200)
 
+    def test_en_la_portada_se_navega_por_las_tarjetas_y_no_hay_barra_ni_caja_vacia(self):
+        """La portada tiene UNA forma de moverse: las tarjetas.
+
+        Debajo de ellas quedaba la fila de pestañas -que lleva a los mismos cuatro sitios- y, al
+        final, una caja titulada "Entrenamiento" que se quedo vacia al quitarle su portada a la
+        pestaña Crear. Ahora cada tarjeta lleva su "Ver ..." y la fila solo aparece ya dentro.
+        """
+        portada = self.client.get(
+            reverse('sessions'), {'team': self.team.id}
+        ).content.decode('utf-8', 'replace')
+
+        self.assertNotIn('id="planner-tabs"', portada, 'en la portada la barra sobra')
+        self.assertNotIn('<h2>Entrenamiento</h2>', portada, 'la caja vacia no puede volver')
+        for enlace in ('Ver biblioteca de tareas', 'Ver sesiones', 'Ver microciclos',
+                       'Importar tareas o sesiones desde PDF'):
+            self.assertIn(enlace, portada, f'la portada tiene que ofrecer «{enlace}»')
+
+        # Ya dentro de una seccion la barra vuelve: es lo que permite saltar de una a otra.
+        dentro = self.client.get(
+            reverse('sessions'), {'tab': 'sessions', 'team': self.team.id}
+        ).content.decode('utf-8', 'replace')
+        self.assertIn('id="planner-tabs"', dentro)
+
+        # Y en un formulario de crear tambien, para no dejarlo sin salida.
+        formulario = self.client.get(
+            reverse('sessions'), {'tab': 'create', 'create_page': 'task', 'team': self.team.id}
+        ).content.decode('utf-8', 'replace')
+        self.assertIn('id="planner-tabs"', formulario)
+
     def test_update_library_task_does_not_wipe_unposted_fields_on_rename(self):
         session = TrainingSession.objects.create(
             microcycle=self.microcycle,

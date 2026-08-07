@@ -2197,20 +2197,24 @@
               class="button secondary"
               href="{% url task_builder_route_name %}?repo=traditional&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}"
             >Crear tarea</a>
+            <a class="button ghost" href="?tab=library&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Ver biblioteca de tareas →</a>
           </div>
           <div class="workflow-card is-primary">
             <div class="workflow-step"><span class="wf-ico" aria-hidden="true">📆</span> Sesión{% if all_sessions %} · <span class="wf-count">{{ all_sessions|length }} creada{{ all_sessions|length|pluralize }}</span>{% endif %}</div>
             <strong class="wf-title">Montar una sesión</strong>
             <p>Elige tareas por bloques y monta la sesión completa con sus tiempos.</p>
             <a class="button primary" href="?tab=create&create_page=session&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Crear sesión</a>
+            <a class="button ghost" href="?tab=sessions&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Ver sesiones →</a>
           </div>
           <div class="workflow-card">
             <div class="workflow-step"><span class="wf-ico" aria-hidden="true">🗓️</span> Microciclo{% if planning_microcycle_rows %} · <span class="wf-count">{{ planning_microcycle_rows|length }} activo{{ planning_microcycle_rows|length|pluralize }}</span>{% endif %}</div>
             <strong class="wf-title">Planificar la semana</strong>
             <p>Distribuye el volumen semanal y ajusta cargas para mantener coherencia.</p>
             <a class="button secondary" href="?tab=create&create_page=microcycle&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Crear microciclo</a>
+            <a class="button ghost" href="?tab=microcycles&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Ver microciclos →</a>
           </div>
         </div>
+        <p class="meta" style="margin:0.8rem 0 0;"><a href="?tab=import&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Importar tareas o sesiones desde PDF →</a></p>
       </section>
       {% endif %}
 
@@ -2240,19 +2244,25 @@
 			      ahora lo que es, y el orden es el del trabajo: primero lo de esta semana. La de tareas se
 			      llama "Biblioteca de tareas" y no "Tareas": al acortarla se perdio la palabra que el
 			      entrenador busca, y dejo de encontrar por donde se iba a la biblioteca.{% endcomment %}
+			      {% comment %}La barra solo cuando ya estas DENTRO. En la portada las tarjetas ya llevan a
+			      cada sitio, y tener las dos cosas era decir lo mismo dos veces seguidas.{% endcomment %}
+			      {% if request.GET.create_page or not main_tab == 'create' %}
 			      <div class="tabs" id="planner-tabs">
 			        <a class="tab-link {% if active_tab == 'sessions' %}is-active{% endif %}" href="?tab=sessions&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Sesiones</a>
 			        <a class="tab-link {% if active_tab == 'microcycles' %}is-active{% endif %}" href="?tab=microcycles&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Microciclos</a>
 			        <a class="tab-link {% if main_tab == 'library' and active_tab == 'library' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Biblioteca de tareas</a>
 			        <a class="tab-link {% if main_tab == 'import' %}is-active{% endif %}" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Importar</a>
 			      </div>
+			      {% endif %}
 
 			      <div class="tab-panel {% if main_tab == 'create' %}is-active{% endif %}" data-tab="create">
 	              {% with create_page=request.GET.create_page|default:'' %}
+	              {% comment %}Sin create_page este panel no tiene contenido: al quitarle la portada
+	              quedaba una caja vacia con el titulo "Entrenamiento" al final de la pagina.{% endcomment %}
+	              {% if create_page %}
 					        <section class="panel">
 					          <h2>
-                      {% if not create_page %}Entrenamiento
-                      {% elif create_page == 'task' %}Tarea
+                      {% if create_page == 'task' %}Tarea
                       {% elif create_page == 'session' %}Sesión
                       {% elif create_page == 'microcycle' %}Microciclo
                       {% elif create_page == 'tactics' %}Táctica
@@ -2263,8 +2273,6 @@
 				          encima de las pestañas hace justo eso, con contadores y explicacion, y sus botones llevan
 				          a estos mismos formularios. Tener las dos era decir lo mismo dos veces en la misma
 				          pantalla. La pestaña se quita de la fila y aqui solo viven los formularios.{% endcomment %}
-				          {% if not create_page %}
-                  {% else %}
                   <p class="meta" style="margin-top:0;"><a class="button" href="?tab=sessions&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">← Volver a Sesiones</a></p>
                   {% if create_page == 'task' %}
                   <div class="create-actions-panel">
@@ -2521,8 +2529,8 @@
 	                    </div>
 	                  </div>
 	                  {% endif %}
-	                  {% endif %}
 					        </section>
+	              {% endif %}
 	                {% endwith %}
 				      </div>
 
