@@ -4313,7 +4313,7 @@
                     placeholder="Buscar una tarea por su nombre, objetivo, material…"
                     aria-label="Buscar tarea en la biblioteca"
                   />
-                  {% if biblioteca_dentro %}
+                  {% if library_viendo_lista %}
                   <select name="sort" aria-label="Ordenar tareas">
                     <option value="recent" {% if library_sort == 'recent' %}selected{% endif %}>Más recientes</option>
                     <option value="title" {% if library_sort == 'title' %}selected{% endif %}>A‑Z</option>
@@ -4376,7 +4376,7 @@
 tareas, y las tres carpetas —la respuesta a "por donde voy"— las ultimas, detras de otras
 catorce cosas. En la portada se queda el buscador y las carpetas; los filtros, el orden y el
 agrupado aparecen DENTRO de una carpeta, que es cuando sirven de algo. No se quita nada.{% endcomment %}
-			        {% if library_season_options and biblioteca_dentro %}
+			        {% if library_season_options and library_viendo_lista %}
 			        <div class="library-season-strip" role="tablist" aria-label="Filtrar por temporada" style="display:flex; flex-wrap:wrap; gap:0.4rem; align-items:center; margin:0.2rem 0 0.9rem;">
 			          <span class="meta" style="font-weight:800; letter-spacing:.02em; margin-right:0.15rem;">TEMPORADA</span>
 			          {% for s in library_season_options %}
@@ -4388,7 +4388,7 @@ agrupado aparecen DENTRO de una carpeta, que es cuando sirven de algo. No se qui
 			        {% endif %}
 			        {% comment %}Los desplegables de faceta (Bloque, Momento...) filtran una lista:
 			        en la portada no hay lista que filtrar.{% endcomment %}
-			        {% if library_facets and biblioteca_dentro %}
+			        {% if library_facets and library_viendo_lista %}
 			        <div class="library-chips" style="display:flex; flex-wrap:wrap; gap:0.4rem; align-items:center; margin:0 0 0.9rem;">
 			          {% for f in library_facets %}
 			          <details class="library-chip" style="position:relative;">
@@ -4404,7 +4404,7 @@ agrupado aparecen DENTRO de una carpeta, que es cuando sirven de algo. No se qui
 			          {% if library_facets_clear_href %}<a href="{{ library_facets_clear_href }}" class="button secondary small" style="margin-left:.2rem;">✕ Limpiar filtros</a>{% endif %}
 			        </div>
 			        {% endif %}
-				        {% if biblioteca_dentro %}
+				        {% if library_viendo_lista %}
 				        <div style="display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; margin:0 0 0.8rem;">
 				          <button type="button" class="button {% if library_group_by_block %}primary{% else %}secondary{% endif %} small" title="Ordena las tareas por bloque con una cabecera por sección" onclick="var u=new URL(location.href); {% if library_group_by_block %}u.searchParams.delete('library_group');{% else %}u.searchParams.set('library_group','block');{% endif %} location.href=u.toString();">{% if library_group_by_block %}✓ Agrupado por bloque{% else %}⊞ Agrupar por bloque{% endif %}</button>
 				          {% if library_group_by_block %}<span class="meta" style="opacity:.8;">Tareas ordenadas por bloque para elegirlas fácil.</span>{% endif %}
@@ -4474,7 +4474,7 @@ agrupado aparecen DENTRO de una carpeta, que es cuando sirven de algo. No se qui
 		        {% comment %} Los cuatro filtros por ORIGEN (Todas/Creadas/Subidas/Realizadas) son para administrar
 		           la biblioteca. Si vienes de una sesión a elegir una tarea, sobran: quedaban cuatro
 		           cajas encima de las tres carpetas y no se sabía cuál era cuál. {% endcomment %}
-		        {% if biblioteca_dentro and not eligiendo_para_sesion %}
+		        {% if library_viendo_lista and not eligiendo_para_sesion %}
 		        {% comment %}Dentro de una carpeta, los cuatro filtros por ORIGEN repiten lo que ya
 		        dice la carpeta ("Creadas 30" cuando la carpeta son 30). Se pliegan.{% endcomment %}
 		        <details style="margin:0 0 0.6rem;">
@@ -4600,6 +4600,8 @@ agrupado aparecen DENTRO de una carpeta, que es cuando sirven de algo. No se qui
 			          <strong>{% if library_source_tab == 'imported' %}Importadas{% elif library_source_tab == 'performed' %}Realizadas{% else %}Creadas{% endif %}</strong>{% if library_collection_id %}{% for col in library_collections %}{% if library_collection_id == col.id %}, colección <strong>{{ col.name }}</strong> ({{ col.item_count|default:0 }} tareas, ordenadas por número){% endif %}{% endfor %}{% endif %}.
 			        </p>
 			        {% if library_source_tab != 'imported' and library_source_tab != 'performed' %}
+			        {% comment %}Administracion: no va delante de unas carpetas.{% endcomment %}
+			        {% if library_viendo_lista %}
 			        <form method="post" style="margin:-0.4rem 0 0.9rem;" onsubmit="return confirm('¿Enviar a la papelera los borradores vacíos (sin título, objetivo, dibujo ni PDF)? Se pueden restaurar.');">
 			          {% csrf_token %}
 			          <input type="hidden" name="planner_action" value="delete_empty_library_drafts" />
@@ -4607,6 +4609,7 @@ agrupado aparecen DENTRO de una carpeta, que es cuando sirven de algo. No se qui
 			          <input type="hidden" name="library_repo" value="{{ library_repository }}" />
 			          <button type="submit" class="button secondary small" title="Enviar a papelera los borradores que no corresponden a nada" aria-label="Limpiar borradores vacíos">🧹 Limpiar borradores vacíos</button>
 			        </form>
+			        {% endif %}
 			        {% endif %}
 
                 <details class="box" style="margin:0 0 1rem;">
@@ -5213,7 +5216,7 @@ agrupado aparecen DENTRO de una carpeta, que es cuando sirven de algo. No se qui
         </script>
         {% endif %}
         {% comment %}Paginar en la portada es paginar una lista que no se ve.{% endcomment %}
-        {% if library_pages|default:1|add:0 > 1 and biblioteca_dentro %}
+        {% if library_pages|default:1|add:0 > 1 and library_viendo_lista %}
         <div style="display:flex; gap:0.55rem; flex-wrap:wrap; align-items:center; justify-content:center; margin-top: 1rem;">
           {% if library_page|default:1|add:0 > 1 %}
           <a class="button secondary" href="?{{ library_pager_prefix }}lib_page={{ library_page|add:'-1' }}">← Anterior</a>
