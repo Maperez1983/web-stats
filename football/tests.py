@@ -14643,6 +14643,60 @@ class SessionsPlanningTests(TestCase):
                                 'goals', f'porteria_cenital_{cara}.png')
             self.assertTrue(os.path.exists(ruta), f'no existe {ruta}')
 
+    def test_quitar_la_marca_interactiva_a_las_que_no_lo_son(self):
+        """141 tareas salían como "Interactivas" y ninguna era de vídeo.
+
+        El editor guarda el repositorio que trae la URL, así que entrar UNA vez por el botón
+        "🎬 Interactiva" dejaba ese `repo=interactive` pegado y marcaba todo lo guardado después.
+        El comando le quita la marca a lo que no lo es, y respeta lo que sí (vídeo o jugada de
+        Táctica). Escribe con update(), nunca con save(): save() vuelve a derivar `task_family`
+        del JSON y las tareas catalogadas a mano llevan el tipo en la COLUMNA, no en el JSON.
+        """
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        from football.library_repositories import LIBRARY_MICROCYCLE_MARKER
+
+        micro = TrainingMicrocycle.objects.create(
+            team=self.team, title='Biblioteca interactiva', week_start=date(2000, 1, 3),
+            week_end=date(2000, 1, 9), notes=LIBRARY_MICROCYCLE_MARKER,
+        )
+        sesion = TrainingSession.objects.create(
+            microcycle=micro, session_date=date(2000, 1, 4), focus='Biblioteca interactiva',
+        )
+        falsa = SessionTask.objects.create(session=sesion, title='Pase y control', order=1)
+        buena = SessionTask.objects.create(session=sesion, title='Jugada de córner', order=2)
+        SessionTask.objects.filter(id=falsa.id).update(
+            task_family='rondo',  # catalogada a mano: el tipo vive en la COLUMNA
+            tactical_layout={'meta': {'repository': 'interactive', 'source': 'manual-studio'}},
+            task_layout_light={'meta': {'repository': 'interactive', 'source': 'manual-studio'}},
+        )
+        SessionTask.objects.filter(id=buena.id).update(
+            tactical_layout={'meta': {'repository': 'interactive', 'source': 'tactics-playbook'}},
+            task_layout_light={'meta': {'repository': 'interactive', 'source': 'tactics-playbook'}},
+        )
+
+        # Sin --apply no puede tocar nada.
+        salida = StringIO()
+        call_command('arreglar_marca_interactiva', stdout=salida)
+        self.assertIn('se les quita la marca : 1', salida.getvalue())
+        self.assertEqual(
+            SessionTask.objects.get(id=falsa.id).task_layout_light['meta'].get('repository'),
+            'interactive', 'la propuesta no escribe',
+        )
+
+        call_command('arreglar_marca_interactiva', '--apply', stdout=StringIO())
+        falsa.refresh_from_db()
+        buena.refresh_from_db()
+        self.assertNotIn('repository', falsa.task_layout_light.get('meta', {}))
+        self.assertNotIn('repository', falsa.tactical_layout.get('meta', {}))
+        self.assertEqual(falsa.task_family, 'rondo', 'el tipo catalogado a mano no se pierde')
+        self.assertEqual(
+            buena.task_layout_light['meta'].get('repository'), 'interactive',
+            'una jugada de Táctica SÍ es interactiva',
+        )
+
     def test_update_library_task_does_not_wipe_unposted_fields_on_rename(self):
         session = TrainingSession.objects.create(
             microcycle=self.microcycle,
