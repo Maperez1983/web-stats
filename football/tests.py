@@ -14345,18 +14345,28 @@ class SessionsPlanningTests(TestCase):
         Tareas/Sesiones/Microciclos. Ahora es una fila plana y cada pestaña se marca en la suya.
         """
         import re as _re
-        esperadas = ['Sesiones', 'Microciclos', 'Biblioteca de tareas', 'Importar']
+        # "Importar" ya no es pestaña: se usa cuatro veces al año y ocupaba un cuarto de la barra
+        # a la altura de Sesiones. Vive dentro de la Biblioteca, que es donde acaba lo importado,
+        # así que importando se queda marcada esa.
+        esperadas = ['Sesiones', 'Microciclos', 'Biblioteca de tareas']
         for tab, activa in (('sessions', 'Sesiones'), ('microcycles', 'Microciclos'),
-                            ('library', 'Biblioteca de tareas'), ('import', 'Importar')):
+                            ('library', 'Biblioteca de tareas'),
+                            ('import', 'Biblioteca de tareas')):
             with self.subTest(pestana=tab):
                 html = self.client.get(
                     reverse('sessions'), {'tab': tab, 'team': self.team.id}
                 ).content.decode('utf-8', 'replace')
                 i = html.index('id="planner-tabs"')
                 trozo = html[i:i + 2600]
-                self.assertEqual(_re.findall(r'>([^<>]{3,24})</a>', trozo)[:4], esperadas)
+                self.assertEqual(_re.findall(r'>([^<>]{3,24})</a>', trozo)[:3], esperadas)
                 marcada = _re.findall(r'is-active[^>]*>([^<>]{3,24})</a>', trozo)[:1]
                 self.assertEqual(marcada, [activa], f'{tab} deberia marcar {activa}')
+
+        # Y desde Importar tiene que haber vuelta: sin pestaña propia, si no, te quedas colgado.
+        importando = self.client.get(
+            reverse('sessions'), {'tab': 'import', 'team': self.team.id}
+        ).content.decode('utf-8', 'replace')
+        self.assertIn('Volver a la biblioteca', importando)
 
     def test_entrar_en_una_biblioteca_ensena_carpetas_por_tipo_no_tareas(self):
         """Entrar en una biblioteca no puede volcar las tareas.
@@ -14518,8 +14528,7 @@ class SessionsPlanningTests(TestCase):
 
         self.assertNotIn('id="planner-tabs"', portada, 'en la portada la barra sobra')
         self.assertNotIn('<h2>Entrenamiento</h2>', portada, 'la caja vacia no puede volver')
-        for enlace in ('Ver biblioteca de tareas', 'Ver sesiones', 'Ver microciclos',
-                       'Importar tareas o sesiones desde PDF'):
+        for enlace in ('Ver biblioteca de tareas', 'Ver sesiones', 'Ver microciclos'):
             self.assertIn(enlace, portada, f'la portada tiene que ofrecer «{enlace}»')
 
         # Ya dentro de una seccion la barra vuelve: es lo que permite saltar de una a otra.

@@ -2280,7 +2280,9 @@
             <a class="button ghost" href="?tab=microcycles&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Ver microciclos →</a>
           </div>
         </div>
-        <p class="meta" style="margin:0.8rem 0 0;"><a href="?tab=import&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Importar tareas o sesiones desde PDF →</a></p>
+        {% comment %}Aqui habia un enlace a Importar. Se ha ido con la pestaña: importar es algo
+        que se hace dentro de la Biblioteca de tareas, que es donde acaba lo importado, y la
+        tarjeta de arriba ya lleva alli.{% endcomment %}
       </section>
       {% endif %}
 
@@ -2316,8 +2318,11 @@
 			      <div class="tabs" id="planner-tabs">
 			        <a class="tab-link {% if active_tab == 'sessions' %}is-active{% endif %}" href="?tab=sessions&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Sesiones</a>
 			        <a class="tab-link {% if active_tab == 'microcycles' %}is-active{% endif %}" href="?tab=microcycles&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Microciclos</a>
-			        <a class="tab-link {% if main_tab == 'library' and active_tab == 'library' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Biblioteca de tareas</a>
-			        <a class="tab-link {% if main_tab == 'import' %}is-active{% endif %}" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Importar</a>
+			        {% comment %}"Importar" ya no es una pestaña: se usa unas cuatro veces al año y
+			        ocupaba un cuarto de la barra a la altura de Sesiones. Vive dentro de la Biblioteca
+			        de tareas, que es donde acaba lo que importas, y por eso al estar importando se
+			        queda marcada esta.{% endcomment %}
+			        <a class="tab-link {% if main_tab == 'library' and active_tab == 'library' or main_tab == 'import' %}is-active{% endif %}" href="?tab=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Biblioteca de tareas</a>
 			      </div>
 			      {% endif %}
 
@@ -2602,6 +2607,9 @@
 
 		      <div class="tab-panel {% if main_tab == 'import' %}is-active{% endif %}" data-tab="import">
 		        <section class="panel">
+		          {% comment %}Importar ya no tiene pestaña propia: se entra desde la Biblioteca de
+		          tareas, asi que la vuelta tiene que estar a la vista o te quedas aqui colgado.{% endcomment %}
+		          <p class="meta" style="margin:0 0 0.6rem;"><a class="button secondary small" href="?tab=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">← Volver a la biblioteca</a></p>
 		          <h2>Importar</h2>
 		          <p class="meta" style="margin-top:0;">Importa contenido al sistema sin cambiar el formato. Lo verás organizado en Biblioteca.</p>
 		          <div class="folder-grid" style="margin-top:0.75rem;">
@@ -4501,7 +4509,9 @@ agrupado aparecen DENTRO de una carpeta, que es cuando sirven de algo. No se qui
 			        {% endif %}
 			        <div class="library-quick-row">
 			          <a class="button" href="{% url task_builder_route_name %}?repo=traditional&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Nueva tarea táctica</a>
-			          <a class="button secondary" href="?tab=import&library_repo={{ library_repository }}#import-tareas">Importar tareas</a>
+			          {% comment %}Este enlace se dejaba el equipo por el camino: sin `team` la pagina de
+			          importar se abria en el equipo por defecto, no en el que estabas mirando.{% endcomment %}
+			          <a class="button secondary" href="?tab=import&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}#import-tareas">Importar tareas</a>
 			          {% if biblioteca_dentro %}<a class="button secondary" href="?tab=sessions&sessions_view=library&library_repo={{ library_repository }}&team={{ primary_team_id }}{% if active_workspace_id %}&workspace={{ active_workspace_id }}{% endif %}">Añadir a sesión</a>{% endif %}
 			        </div>
 			        {% comment %} RECOMENDADAS PARA ESTA SESIÓN. Va ARRIBA del todo y antes de las carpetas: el
