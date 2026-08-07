@@ -49,6 +49,19 @@ ZONAS = (
 
 _VERBOS_IR = ("llevame", "llevame a", "ir a", "abre", "abreme", "vete a", "ve a", "entra en",
               "quiero ir a", "muestrame", "ensename", "donde esta", "donde estan")
+
+# ORDENES. El asistente NO las ejecuta, y esto es a proposito: escribir en la ficha de un
+# jugador porque una frase ha encajado con unas palabras es justo el fallo que tenia el
+# guardian -reparaba datos del club porque alguien preguntaba algo-. Lo que hace es reconocer
+# la orden y llevarte a la pantalla donde se hace, en un clic.
+#
+# Y hay un motivo mas inmediato: "marca a Nico como lesionado" contestaba con la LISTA de
+# lesionados, porque la palabra "lesionado" la leia como consulta. Nico ya estaba lesionado,
+# asi que la respuesta parecia una confirmacion de algo que no habia pasado. Eso es peor que
+# no saber hacerlo.
+_PALABRAS_ORDEN = ("marca", "marcar", "anota", "anotar", "apunta", "apuntar", "pon", "poner",
+                   "registra", "registrar", "quita", "quitar", "borra", "borrar", "cambia",
+                   "cambiar", "convoca", "convocar", "da de baja", "da de alta")
 _VERBOS_BUSCAR = ("busca", "buscar", "buscame", "encuentra", "encuentrame", "localiza")
 _VERBOS_SUGERIR = ("sugiere", "sugiereme", "recomienda", "recomiendame", "proponme", "propon",
                    "dame tareas", "dame ejercicios", "que tareas", "que ejercicios")
@@ -79,6 +92,12 @@ def detectar_intencion(pregunta: str) -> tuple[str, str]:
     q = _sin_tildes(pregunta)
     if not q:
         return "", ""
+
+    # Las ORDENES se miran ANTES que nada. Si no, "marca a Nico como lesionado" cae en el
+    # enrutador de datos por la palabra "lesionado" y responde con la lista, como si lo
+    # hubiera hecho.
+    if any(re.search(r"(?:^|\s)" + re.escape(v) + r"(?:\s|$)", q) for v in _PALABRAS_ORDEN):
+        return "orden", q
 
     # Por longitud descendente y con frontera de palabra: si no, "sugiere" corta dentro de
     # "sugiereme" y deja un "me" pegado al principio de lo que se busca.
@@ -206,4 +225,65 @@ def respuesta_sugerencias(tareas, texto, total=None, url_todas=""):
     return {
         "message": f"{cabecera}:\n{cuerpo}",
         "highlights": [t[:40] for t in titulos[:4]],
+    }
+
+
+# --- ORDENES -------------------------------------------------------------------------------
+# Que hace y que NO hace: reconoce lo que le pides, te dice que no lo va a hacer solo, y te
+# deja en la pantalla donde se hace. Nada de escribir en la ficha de nadie por haber acertado
+# unas palabras: eso es exactamente lo que hacia el guardian con las reparaciones.
+
+_TEMAS = (
+    ("asistencia", ("ausente", "ausencia", "presente", "asiste", "asistencia", "no viene",
+                    "falta", "convoca", "convocatoria")),
+    ("lesion", ("lesion", "lesionado", "lesionada", "baja", "molestia", "recaida")),
+    ("evaluacion", ("evaluacion", "valoracion", "nota", "puntua", "califica")),
+)
+
+
+def tema_de_la_orden(texto: str) -> str:
+    q = _sin_tildes(texto)
+    for tema, palabras in _TEMAS:
+        if any(p in q for p in palabras):
+            return tema
+    return ""
+
+
+def respuesta_orden(texto, *, tema="", jugador=None, sesion=None):
+    """Reconoce la orden, dice claramente que no la ejecuta y lleva a la pantalla."""
+    quien = str(getattr(jugador, "name", "") or "").strip()
+    destino, comoSeHace = "", ""
+
+    if tema == "asistencia":
+        if sesion is not None:
+            fecha = ""
+            try:
+                fecha = sesion.session_date.strftime("%d/%m") if sesion.session_date else ""
+            except Exception:
+                fecha = ""
+            destino = f"/coach/sesiones/sesion/{int(sesion.id)}/"
+            comoSeHace = (f"En la sesión{(' del ' + fecha) if fecha else ''}, en la lista de "
+                          f"asistencia, cambia el desplegable de{(' ' + quien) if quien else ' ese jugador'}.")
+        else:
+            destino = "/coach/sesiones/"
+            comoSeHace = "Abre la sesión y cambia el desplegable de asistencia del jugador."
+    elif tema == "lesion":
+        destino = (f"/player/{int(jugador.id)}/" if jugador is not None else "/coach/plantilla/")
+        comoSeHace = (f"En la ficha de{(' ' + quien) if quien else ' ese jugador'}, en Lesiones, "
+                      "«Nuevo parte». Ahí se registra la baja y la fecha.")
+    elif tema == "evaluacion":
+        destino = (f"/player/{int(jugador.id)}/" if jugador is not None else "/coach/plantilla/")
+        comoSeHace = "En la ficha del jugador, pestaña de valoraciones."
+    else:
+        return {
+            "message": ("Eso es una orden, y de momento no ejecuto cambios: solo consulto y te "
+                        "llevo. Dime qué pantalla necesitas y te abro la puerta."),
+            "highlights": ["Solo lectura"],
+        }
+
+    cabecera = "No lo hago yo: no escribo en las fichas."
+    return {
+        "message": f"{cabecera}\n\n{comoSeHace}\n\nAbrir: {destino}",
+        "highlights": [quien or "Jugador", "Solo lectura"],
+        "ir_a": destino,
     }
