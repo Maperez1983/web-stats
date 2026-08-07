@@ -3218,13 +3218,32 @@ def _observability_summary(workspace) -> dict:
     }
 
 
-def _observability_mesh_snapshot(workspace, *, page_context=None) -> dict:
+def _observability_mesh_snapshot(workspace, *, page_context=None, incluir_red=True) -> dict:
+    """Foto del estado del sistema.
+
+    `incluir_red=False` deja fuera las tres comprobaciones que salen a la red. Se usa desde el
+    CHAT, y el motivo es que una de ellas hacia que la aplicacion **se llamara a si misma** por
+    su URL publica (`_inspect_public_deployment` pide `/healthz` y la home). Con dos workers de
+    gunicorn, la peticion del chat ocupa uno y su propia llamada necesita otro: si esta ocupado,
+    se espera hasta agotar el tiempo. Medido en produccion: preguntar al asistente algo de
+    ayuda se quedaba colgado **mas de 40 s** reteniendo el worker, y antes daba 502.
+
+    Las otras dos (`_inspect_release_pipeline`, `_inspect_remote_logs`) llaman a la API de
+    Render con 12 s de espera cada una. Nada de eso hace falta para contestar "para que sirve
+    el microciclo": es diagnostico de la pantalla del guardian, y alli se sigue haciendo entero.
+    """
     summary = _observability_summary(workspace) if workspace else {}
     runtime = _inspect_runtime_config()
-    public_deployment = _inspect_public_deployment()
-    release_pipeline = _inspect_release_pipeline()
+    if incluir_red:
+        public_deployment = _inspect_public_deployment()
+        release_pipeline = _inspect_release_pipeline()
+        remote_logs = _inspect_remote_logs()
+    else:
+        _omitido = {"skipped": True, "reason": "sin_red_en_el_chat"}
+        public_deployment = dict(_omitido)
+        release_pipeline = dict(_omitido)
+        remote_logs = dict(_omitido)
     recent_errors = _inspect_recent_errors(max_lines=40)
-    remote_logs = _inspect_remote_logs()
     patterns = [row for row in (recent_errors.get("patterns") or []) if isinstance(row, dict)]
     remote_patterns = [row for row in (remote_logs.get("patterns") or []) if isinstance(row, dict)]
     top_pattern = patterns[0] if patterns else {}
@@ -10343,7 +10362,10 @@ def _build_intelligence_os_snapshot(
     snapshot_diff = snapshot_diff if isinstance(snapshot_diff, dict) else {}
     external_connectors = _external_connectors_snapshot(page_context=page_context)
     safe_command_executor = _safe_command_executor_snapshot(page_context=page_context)
-    observability_mesh = _observability_mesh_snapshot(workspace, page_context=page_context)
+    # Tambien sin red: los DOS sitios que piden esta foto son el chat, y el chat la pedia
+    # dos veces por pregunta. Cuatro llamadas de 8 s = los 32 s de cuelgue. El diagnostico
+    # de red sigue disponible como herramienta explicita del guardian.
+    observability_mesh = _observability_mesh_snapshot(workspace, page_context=page_context, incluir_red=False)
     operational_memory = _operational_memory_snapshot(workspace)
     autonomy_policy = _autonomy_policy_snapshot(
         page_context=page_context,
@@ -12629,7 +12651,9 @@ def run_system_guard_chat(
     )
     external_connectors = _external_connectors_snapshot(page_context=page_context)
     safe_command_executor = _safe_command_executor_snapshot(page_context=page_context)
-    observability_mesh = _observability_mesh_snapshot(workspace, page_context=page_context)
+    # Desde el CHAT, sin las comprobaciones de red: una de ellas hacia que la app se llamara
+    # a si misma y el asistente se colgaba >40 s reteniendo un worker. Ver la funcion.
+    observability_mesh = _observability_mesh_snapshot(workspace, page_context=page_context, incluir_red=False)
     operational_memory = _operational_memory_snapshot(workspace, actor_id=actor_id)
     autonomy_policy = _autonomy_policy_snapshot(
         page_context=page_context,
