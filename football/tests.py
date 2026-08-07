@@ -14307,6 +14307,26 @@ class SessionsPlanningTests(TestCase):
         meta_origen = ((realizada.tactical_layout or {}).get('meta') or {})
         self.assertEqual(meta_origen.get('source'), 'performed')
 
+    def test_todas_las_pestanas_del_planificador_responden(self):
+        """Una variable que solo se rellenaba en una pestaña tumbaba las demas.
+
+        `library_otros_repos` se asignaba dentro de `if active_tab == "library"` pero el contexto
+        la lee siempre: Biblioteca daba 200 y Sesiones y Microciclos daban 500 en produccion, en
+        los 11 equipos. Este test recorre todas las pestañas para que no vuelva a pasar con otra.
+        """
+        for tab in ('library', 'sessions', 'microcycles', 'import', 'create'):
+            with self.subTest(pestana=tab):
+                r = self.client.get(reverse('sessions'), {'tab': tab, 'team': self.team.id})
+                self.assertEqual(r.status_code, 200, f'la pestaña {tab} no responde')
+
+        for vista in ('semana', 'calendario', 'cerradas', 'editor', 'library'):
+            with self.subTest(vista=vista):
+                r = self.client.get(
+                    reverse('sessions'),
+                    {'tab': 'sessions', 'sessions_view': vista, 'team': self.team.id},
+                )
+                self.assertEqual(r.status_code, 200, f'la vista {vista} no responde')
+
     def test_update_library_task_does_not_wipe_unposted_fields_on_rename(self):
         session = TrainingSession.objects.create(
             microcycle=self.microcycle,
