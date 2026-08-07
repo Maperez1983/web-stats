@@ -392,6 +392,18 @@ _HEAVY_KEYS = ('tokens', 'timeline')
 _HEAVY_META_KEYS = ('graphic_editor', 'original_version')
 
 
+def _tiene_dibujo(tactical_layout):
+    """¿El lienzo tiene algo dibujado? Mismo criterio que usaba el listado."""
+    try:
+        meta = tactical_layout.get('meta') if isinstance(tactical_layout, dict) else {}
+        graphic = meta.get('graphic_editor') if isinstance(meta, dict) else {}
+        state = graphic.get('canvas_state') if isinstance(graphic, dict) else {}
+        objetos = state.get('objects') if isinstance(state, dict) else None
+        return bool(isinstance(objetos, list) and objetos)
+    except Exception:
+        return False
+
+
 def build_layout_light(tactical_layout):
     """
     `task_layout_light` = el layout sin el lienzo pesado, con el guion ya calculado dentro.
@@ -407,6 +419,11 @@ def build_layout_light(tactical_layout):
     meta = light.get('meta')
     if isinstance(meta, dict):
         light['meta'] = {k: v for k, v in meta.items() if k not in _HEAVY_META_KEYS}
+    # "¿Tiene dibujo?" es el único dato del listado que se quedaba fuera de la copia ligera, y
+    # preguntárselo al lienzo obliga a Postgres a abrir los ~165 KB de CADA fila: una sola
+    # consulta de 5-20 s en la Biblioteca, medido en producción. Se anota aquí, que es una
+    # columna pequeña, y el listado ya no toca el lienzo para nada.
+    light['has_canvas'] = _tiene_dibujo(tactical_layout)
     try:
         script = build_script(tactical_layout)
     except Exception:

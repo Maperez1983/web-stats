@@ -298,7 +298,10 @@ def asegurar_copia_ligera(tasks, *, lote=25, maximo=150):
     pendientes = []
     for task in tasks or []:
         light = getattr(task, 'task_layout_light', None)
-        if isinstance(light, dict) and light:
+        # Vale si tiene copia ligera Y esa copia ya trae la marca de "tiene dibujo": las copias
+        # hechas antes de que existiera esa marca hay que rehacerlas, porque si no el listado
+        # tendria que volver a preguntarle al lienzo, que es lo que se quiere evitar.
+        if isinstance(light, dict) and light and 'has_canvas' in light:
             continue
         tid = getattr(task, 'id', None)
         if tid:
@@ -317,9 +320,9 @@ def asegurar_copia_ligera(tasks, *, lote=25, maximo=150):
             except Exception:
                 light = {}
             # Una tarea sin lienzo da una copia ligera vacia, y una copia vacia se volveria a
-            # considerar pendiente en cada visita: se repararia eternamente. Se deja `meta` vacia,
-            # que es exactamente lo que devolveria leer el layout completo.
-            porId[tid] = light if light else {'meta': {}}
+            # considerar pendiente en cada visita: se repararia eternamente. Se deja `meta` vacia
+            # -que es lo que devolveria leer el layout completo- y la marca ya puesta a False.
+            porId[tid] = light if light else {'meta': {}, 'has_canvas': False}
 
     # En bloque, no fila a fila: escribir una por una anadia tantas consultas como tareas
     # reparaba -100 UPDATE en una visita-, que es justo el problema que viene a quitar.
