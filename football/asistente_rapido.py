@@ -168,7 +168,7 @@ def _campo(tarea, *nombres):
     return None
 
 
-def respuesta_sugerencias(tareas, texto):
+def respuesta_sugerencias(tareas, texto, total=None, url_todas=""):
     tareas = [t for t in (tareas or []) if t is not None]
     if not tareas:
         return {
@@ -191,7 +191,19 @@ def respuesta_sugerencias(tareas, texto):
         filas.append(fila)
     if not filas:
         return {"message": f"No encuentro tareas de «{texto}» en tu biblioteca.", "highlights": []}
+    # Decir CUANTAS hay en total. El recomendador propone seis como mucho y ademas limita
+    # cuantas caen de la misma familia -seis rondos casi iguales no es una recomendacion-, asi
+    # que sin este dato parece que solo tienes cinco tareas de rondo cuando tienes doce.
+    cabecera = f"Tareas de tu biblioteca para «{texto}»"
+    try:
+        if total and int(total) > len(filas):
+            cabecera += f" ({len(filas)} de {int(total)}, elegidas por variedad)"
+    except Exception:
+        pass
+    cuerpo = "\n".join(filas)
+    if url_todas:
+        cuerpo += f"\n\nVer todas: {url_todas}"
     return {
-        "message": f"Tareas de tu biblioteca para «{texto}»:\n" + "\n".join(filas),
+        "message": f"{cabecera}:\n{cuerpo}",
         "highlights": [t[:40] for t in titulos[:4]],
     }
