@@ -19,6 +19,21 @@ from football.library_repositories import is_library_session
 from football.models import SessionTask
 
 
+def datos_de_url(valor):
+    """Saca los bytes de un data-URL ("data:image/jpeg;base64,....") o de un base64 pelado."""
+    import base64
+
+    texto = str(valor or "").strip()
+    if not texto:
+        return b""
+    if texto.startswith("data:"):
+        _, _, texto = texto.partition(",")
+    try:
+        return base64.b64decode(texto, validate=False)
+    except Exception:
+        return b""
+
+
 def es_cesped_pelado(crudo):
     """¿La miniatura es un campo vacío? Se mide lo que NO es hierba.
 
@@ -78,6 +93,7 @@ class Command(BaseCommand):
         cubos = cubos_vacios()
         cubos_sesion = cubos_vacios()
         por_equipo_sin_nada = {}
+        con_portada = []
         con_miniatura = []
         sin_nada = []
         total = 0
@@ -94,6 +110,8 @@ class Command(BaseCommand):
             dibujo = bool(isinstance(light, dict) and light.get("has_canvas"))
             if getattr(tarea, "cover_present", False):
                 destino["portada"] += 1
+                if de_biblioteca:
+                    con_portada.append(tarea.id)
             elif getattr(tarea, "task_preview_image", None):
                 destino["miniatura"] += 1
                 if de_biblioteca:
@@ -135,6 +153,40 @@ class Command(BaseCommand):
             self.stdout.write("\n=== las de biblioteca SIN NADA, por equipo ===")
             for equipo, n in sorted(por_equipo_sin_nada.items(), key=lambda kv: -kv[1]):
                 self.stdout.write(f"  {n:>5}  {equipo}")
+
+        # LAS PORTADAS. Son la mayoría y la tarjeta las prefiere a todo lo demás, así que si una
+        # está vacía da igual que la tarea tenga una miniatura perfecta debajo: se ve la portada.
+        # No son ficheros: viven en una columna base64, que además está diferida a propósito
+        # porque pesa. Se piden aparte y sólo las de la muestra.
+        if con_portada and muestra:
+            cuantas = min(muestra, len(con_portada))
+            self.stdout.write(f"\n=== mirando {cuantas} portadas por dentro ===")
+            peladas = []
+            ilegibles = 0
+            miradas = 0
+            for tid in con_portada[:cuantas]:
+                fila = SessionTask.objects.filter(id=tid).values_list("cover_data_b64", flat=True).first()
+                crudo = datos_de_url(fila)
+                if not crudo:
+                    # Retrocompat: las portadas viejas viven dentro del JSON, no en su columna.
+                    tarea_completa = SessionTask.objects.filter(id=tid).first()
+                    crudo = datos_de_url(
+                        tarea_completa.cover_embedded_url() if tarea_completa else ""
+                    )
+                if not crudo:
+                    ilegibles += 1
+                    continue
+                miradas += 1
+                if es_cesped_pelado(crudo):
+                    peladas.append(tid)
+            self.stdout.write(f"  {miradas:>5}  se leen")
+            self.stdout.write(f"  {ilegibles:>5}  no se pueden leer")
+            self.stdout.write(self.style.WARNING(
+                f"  {len(peladas):>5}  son CAMPO PELADO: se ven, pero no hay nada dibujado"
+            ))
+            if peladas:
+                self.stdout.write("  ids de las peladas:")
+                self.stdout.write("  " + ", ".join(str(i) for i in peladas[:80]))
 
         # LA PRUEBA DE VERDAD: que el fichero esté donde la base de datos dice.
         if con_miniatura and muestra:
