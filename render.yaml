@@ -72,6 +72,11 @@ services:
         sync: false
       - key: DEBUG
         value: "false"
+      # Groq: entender la frase cuando las palabras clave no llegan. Nivel gratuito, sin
+      # tarjeta. El valor se pone en el panel, no aqui. Sin clave, el asistente funciona igual
+      # que hoy: ni se llama. Solo viaja la frase, y con los nombres de la plantilla tapados.
+      - key: GROQ_API_KEY
+        sync: false
       # Si cambia el esquema, preferimos migrar en build y fallar el deploy antes que
       # levantar la app con código nuevo sobre una base vieja y acabar en 500.
       - key: RUN_MIGRATIONS_AT_BUILD
