@@ -6027,6 +6027,40 @@ class SessionsTaskBuilderSubmitTests(TestCase):
         session['active_workspace_id'] = self.workspace.id
         session.save()
 
+    def test_no_se_crea_una_tarea_sin_nombre_sin_dibujo_y_sin_objetivo(self):
+        """En produccion hay 21 filas "Tarea sin titulo" / "Nueva tarea", vacias del todo.
+
+        Aparecen cada pocos dias desde junio, todas con source `manual-studio`: son guardados del
+        editor sin contenido. Ocupan sitio en la biblioteca, ensucian los recuentos y alguien las
+        va mandando a la papelera a mano. Nada + nada no es una tarea.
+        """
+        url = reverse('sessions-task-create')
+        base = {
+            # `task_family` es obligatorio al crear (todo lo nuevo se clasifica), asi que va en
+            # las tres: si no, no se distinguiria "no se crea por vacia" de "no se crea por eso".
+            'task_family': 'rondo',
+            'draw_task_block': SessionTask.BLOCK_MAIN_1,
+            'draw_task_minutes': '15',
+            'draw_canvas_width': '1280',
+            'draw_canvas_height': '720',
+        }
+        antes = SessionTask.objects.count()
+
+        self.client.post(url, data={**base, 'draw_task_title': '', 'draw_task_objective': '',
+                                    'draw_canvas_state': '{"objects": []}'}, secure=True)
+        self.assertEqual(SessionTask.objects.count(), antes, 'no puede crear una tarea vacia')
+
+        # Con DIBUJO si se crea aunque no tenga nombre: el nombre se pone luego en la ficha.
+        self.client.post(url, data={**base, 'draw_task_title': '',
+                                    'draw_canvas_state': '{"objects": [{"type": "circle"}]}'}, secure=True)
+        self.assertEqual(SessionTask.objects.count(), antes + 1, 'con dibujo si se guarda')
+
+        # Y con OBJETIVO tambien: hay tareas que se describen antes de dibujarlas.
+        self.client.post(url, data={**base, 'draw_task_title': '',
+                                    'draw_task_objective': 'Mejorar la salida de balon',
+                                    'draw_canvas_state': '{"objects": []}'}, secure=True)
+        self.assertEqual(SessionTask.objects.count(), antes + 2, 'con objetivo si se guarda')
+
     def test_double_submit_with_same_uid_does_not_create_duplicates(self):
         url = reverse('sessions-task-create')
         payload = {
