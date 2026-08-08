@@ -122,16 +122,19 @@ página.{% endcomment %}
                   {% endfor %}
                 </select>
               </label>
-              <div style="grid-column:1/-1;border-top:1px solid rgba(148,163,184,.18);padding-top:.7rem;margin-top:.2rem;">
-                <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--prod-muted);font-weight:800;margin-bottom:.5rem;">Rasgos / preferencias</div>
-                <div style="display:flex;gap:.45rem .95rem;flex-wrap:wrap;">
+              {% comment %}Los 15 rasgos ocupaban cinco filas enteras en mitad del formulario, y se rellenan{% endcomment %}
+              {% comment %}cuando ojeas, no cuando das de alta a un niño. Plegados, y el resumen dice cuántos{% endcomment %}
+              {% comment %}lleva marcados para no tener que abrirlo sólo por comprobar.{% endcomment %}
+              <details class="form-extra" style="grid-column:1/-1;border-top:1px solid rgba(148,163,184,.18);padding-top:.7rem;margin-top:.2rem;"{% if traits_marcados %} open{% endif %}>
+                <summary style="cursor:pointer;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--prod-muted);font-weight:800;padding:.15rem 0;">Rasgos / preferencias{% if traits_marcados %} · {{ traits_marcados }} marcado{{ traits_marcados|pluralize }}{% endif %}</summary>
+                <div style="display:flex;gap:.45rem .95rem;flex-wrap:wrap;margin-top:.6rem;">
                   {% for t in player_traits_catalog %}
                   <label style="display:flex;align-items:center;gap:.35rem;font-size:.82rem;font-weight:600;cursor:pointer;flex-direction:row;">
                     <input type="checkbox" name="traits" value="{{ t.key }}" {% if t.selected %}checked{% endif %} style="width:auto;margin:0;" /> {{ t.label }}
                   </label>
                   {% endfor %}
                 </div>
-              </div>
+              </details>
               {% comment %}Aqui vivia el bloque "Avatar" (tono de piel, grado, color de pelo,
               peinado y vista previa). El avatar tiene ahora su propia pantalla, en
               Plantilla -> Avatares, donde se rellena el equipo entero de una vez; tenerlo
