@@ -1564,6 +1564,60 @@
         queda en blanco — la plantilla resuelve `pc.space_label` como ARGUMENTO de filtro, y ahi
         Django si lanza VariableDoesNotExist en vez de tragarselo. Asi que cada panel solo se pinta
         si su contexto existe; si falta, el boton recarga la pagina como antes.{% endcomment %}
+        {% if board_hd_pendiente %}
+        {% comment %}
+          El dibujo de la ficha es una FOTO del editor que se hace en segundo plano y tarda cerca
+          de un minuto. Hasta ahora se encolaba en silencio: la pagina que ya estabas mirando se
+          quedaba con el dibujo viejo y no habia forma de saber que venia uno nuevo, asi que
+          parecia que editar la pizarra no actualizaba la ficha. Ahora se avisa y se recarga sola.
+        {% endcomment %}
+        <div class="board-hd-aviso" data-board-hd-pendiente
+             data-board-hd-url="{% url 'session-task-board-hd' task.id %}">
+          <span class="board-hd-spin" aria-hidden="true"></span>
+          <span>Actualizando el dibujo de la ficha… <b data-board-hd-estado>se está fotografiando la pizarra</b></span>
+        </div>
+        <style>
+          .board-hd-aviso { display:flex; align-items:center; gap:0.55rem; margin:0 0 0.7rem;
+            padding:0.55rem 0.85rem; border-radius:12px; border:1px solid rgba(244,180,0,0.35);
+            background:rgba(244,180,0,0.10); color:var(--prod-text,#e5e7eb); font-size:0.86rem; }
+          .board-hd-aviso b { font-weight:800; }
+          .board-hd-spin { width:14px; height:14px; flex:none; border-radius:50%;
+            border:2px solid rgba(244,180,0,0.35); border-top-color:#f4b400;
+            animation:board-hd-giro 0.9s linear infinite; }
+          @keyframes board-hd-giro { to { transform:rotate(360deg); } }
+          .board-hd-aviso.is-listo { border-color:rgba(134,239,172,0.45); background:rgba(134,239,172,0.12); }
+          .board-hd-aviso.is-listo .board-hd-spin { animation:none; border-color:#86efac; border-top-color:#86efac; }
+          @media print { .board-hd-aviso { display:none; } }
+        </style>
+        <script>
+          (function () {
+            var caja = document.querySelector('[data-board-hd-pendiente]');
+            if (!caja) return;
+            var url = caja.getAttribute('data-board-hd-url');
+            var estado = caja.querySelector('[data-board-hd-estado]');
+            var intentos = 0;
+            // Cada 8 s, hasta 5 minutos. La consulta de estado NO encola nada (lo hace el
+            // servidor al pintar la ficha), asi que preguntar es barato.
+            var reloj = setInterval(function () {
+              intentos += 1;
+              if (intentos > 38) { clearInterval(reloj); if (estado) estado.textContent = 'está tardando; recarga la página en un rato'; return; }
+              fetch(url, { credentials: 'same-origin', cache: 'no-store' })
+                .then(function (r) { return r.json(); })
+                .then(function (d) {
+                  if (d && d.is_current) {
+                    clearInterval(reloj);
+                    caja.classList.add('is-listo');
+                    if (estado) estado.textContent = 'listo, recargando…';
+                    setTimeout(function () { location.reload(); }, 900);
+                  } else if (d && d.last_note && estado) {
+                    estado.textContent = String(d.last_note).slice(0, 90);
+                  }
+                })
+                .catch(function () {});
+            }, 8000);
+          })();
+        </script>
+        {% endif %}
         {% if task_presentation_pdf_context_by_format.club %}
           <div class="task-detail-format-panel{% if active_task_format_tab == 'club' %} is-active{% endif %}" data-task-format-panel="club"{% if active_task_format_tab != 'club' %} hidden{% endif %}>
             {% include 'football/includes/session_task_presentation_layout.html' with presentation_format='Club' presentation_context=task_presentation_pdf_context_by_format.club presentation_editable=presentation_inline_edit %}
