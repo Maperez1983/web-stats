@@ -14665,6 +14665,70 @@ class SessionsPlanningTests(TestCase):
         # Los tipos, en cambio, mandan: son la única fila de carpetas que se ve al entrar.
         self.assertIn('Todos los tipos', html)
 
+    def test_quitar_la_portada_cuando_es_un_campo_pelado(self):
+        """Había portadas que son sólo hierba, y la portada gana a todo lo demás.
+
+        Resultado: tareas enseñando un rectángulo verde con su dibujo perfecto debajo. Se les
+        quita la portada y la tarjeta pasa a enseñar el dibujo. A la que no tiene nada debajo NO
+        se le toca: un campo verde es feo, pero es mejor que un hueco gris.
+        """
+        import base64
+        import io
+        from io import StringIO
+
+        from django.core.management import call_command
+        from PIL import Image
+
+        from football.library_repositories import LIBRARY_MICROCYCLE_MARKER
+
+        def como_data_url(imagen):
+            buf = io.BytesIO()
+            imagen.save(buf, 'JPEG')
+            return 'data:image/jpeg;base64,' + base64.b64encode(buf.getvalue()).decode()
+
+        pelada = como_data_url(Image.new('RGB', (640, 400), (40, 130, 45)))
+        # Una tarea de verdad tiene MANCHAS: fichas y conos, no puntitos sueltos. Con un patrón
+        # de píxeles no vale: al encoger la imagen se funden con la hierba y da "pelada" -que es
+        # justo el motivo por el que la medición se hace a 320px y no a 60-.
+        con_cosas = Image.new('RGB', (640, 400), (40, 130, 45))
+        con_cosas.paste(Image.new('RGB', (180, 110), (250, 250, 250)), (60, 60))
+        con_cosas.paste(Image.new('RGB', (90, 90), (230, 60, 40)), (400, 200))
+
+        micro = TrainingMicrocycle.objects.create(
+            team=self.team, title='Biblioteca', week_start=date(2000, 1, 3),
+            week_end=date(2000, 1, 9), notes=LIBRARY_MICROCYCLE_MARKER,
+        )
+        sesion = TrainingSession.objects.create(
+            microcycle=micro, session_date=date(2000, 1, 4), focus='Biblioteca',
+        )
+        con_dibujo = SessionTask.objects.create(session=sesion, title='Rondo 4+1', order=1)
+        sin_nada = SessionTask.objects.create(session=sesion, title='Vacía', order=2)
+        buena = SessionTask.objects.create(session=sesion, title='Con portada buena', order=3)
+        SessionTask.objects.filter(id=con_dibujo.id).update(
+            cover_present=True, cover_data_b64=pelada, task_layout_light={'has_canvas': True},
+        )
+        SessionTask.objects.filter(id=sin_nada.id).update(cover_present=True, cover_data_b64=pelada)
+        SessionTask.objects.filter(id=buena.id).update(
+            cover_present=True, cover_data_b64=como_data_url(con_cosas),
+            task_layout_light={'has_canvas': True},
+        )
+
+        salida = StringIO()
+        call_command('arreglar_tarjetas_biblioteca', stdout=salida)
+        texto = salida.getvalue()
+        self.assertIn('1  peladas CON dibujo debajo', texto)
+        self.assertIn('1  peladas y sin nada debajo', texto)
+        self.assertIn('1  enseñan algo', texto)
+        self.assertTrue(SessionTask.objects.get(id=con_dibujo.id).cover_present, 'la propuesta no escribe')
+
+        call_command('arreglar_tarjetas_biblioteca', '--apply', stdout=StringIO())
+        self.assertFalse(SessionTask.objects.get(id=con_dibujo.id).cover_present,
+                         'la portada pelada se quita y se ve el dibujo')
+        self.assertTrue(SessionTask.objects.get(id=sin_nada.id).cover_present,
+                        'sin nada debajo, mejor verde que gris')
+        self.assertTrue(SessionTask.objects.get(id=buena.id).cover_present,
+                        'una portada que enseña algo no se toca')
+
     def test_quitar_la_marca_interactiva_a_las_que_no_lo_son(self):
         """141 tareas salían como "Interactivas" y ninguna era de vídeo.
 
