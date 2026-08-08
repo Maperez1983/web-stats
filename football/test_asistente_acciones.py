@@ -88,6 +88,15 @@ class AsistenteAccionesTests(TestCase):
         respuesta = self._decir("marca a Nico Ruiz como lesionado")
         self.assertNotIn("lesionado(s):", respuesta)
 
+    def test_un_nombre_dentro_de_otra_palabra_no_cuenta(self):
+        # "Reno" encajaba dentro de "entRENO" y el asistente preguntaba "¿Reno o Harley?" en
+        # "apunta que Harley no vino al entreno". Con dos jugadores reales asi, o eliges mal o
+        # preguntas siempre; las dos cosas son inservibles.
+        Player.objects.create(team=self.team, name="Reno", number=11, is_active=True)
+        respuesta = self._decir("apunta que Nico Ruiz no vino al entreno")
+        self.assertNotIn("¿A cuál de estos", respuesta)
+        self.assertIn("Nico Ruiz", respuesta)
+
     def test_un_si_suelto_no_ejecuta_nada(self):
         respuesta = self._decir("sí")
         self.assertIn("nada pendiente", respuesta.lower())
