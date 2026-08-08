@@ -1,9 +1,45 @@
 from pathlib import Path
 
 from django.conf import settings
+from django.core.cache import cache
 from django.template.defaultfilters import slugify
 
 from .event_taxonomy import normalize_label
+
+# Lo unico que hace falta del equipo para decidir la carpeta de la foto: tres datos que
+# cambian una vez al ano. Se guardan por equipo porque `player.team` es una consulta CADA
+# vez que se toca, y a esta funcion se le pregunta la foto del mismo jugador muchas veces
+# por pagina: en la portada del entrenador salian 362 consultas a football_team.
+_DATOS_EQUIPO_TTL = 5 * 60
+
+
+def _datos_del_equipo(player):
+    team_id = getattr(player, 'team_id', None)  # OJO: `team_id` NO consulta; `team` si.
+    if not team_id:
+        return None, '', '', False
+    clave = f'foto-jugador:equipo:{team_id}'
+    try:
+        guardado = cache.get(clave)
+    except Exception:
+        guardado = None
+    if guardado:
+        return (team_id,) + tuple(guardado)
+
+    team_obj = getattr(player, 'team', None)
+    slug = str(getattr(team_obj, 'slug', '') or '').strip()
+    try:
+        categoria = normalize_label(getattr(team_obj, 'category', '') or '')
+    except Exception:
+        categoria = ''
+    try:
+        principal = bool(getattr(team_obj, 'is_primary', False))
+    except Exception:
+        principal = False
+    try:
+        cache.set(clave, (slug, categoria, principal), _DATOS_EQUIPO_TTL)
+    except Exception:
+        pass
+    return team_id, slug, categoria, principal
 
 
 def resolve_player_photo_static_path(player):
@@ -13,17 +49,7 @@ def resolve_player_photo_static_path(player):
     if not players_dir.exists():
         return ''
 
-    team_obj = getattr(player, 'team', None)
-    team_id = getattr(team_obj, 'id', None)
-    team_slug = str(getattr(team_obj, 'slug', '') or '').strip()
-    try:
-        team_category = normalize_label(getattr(team_obj, 'category', '') or '')
-    except Exception:
-        team_category = ''
-    try:
-        is_primary_team = bool(getattr(team_obj, 'is_primary', False))
-    except Exception:
-        is_primary_team = False
+    team_id, team_slug, team_category, is_primary_team = _datos_del_equipo(player)
     youth_tokens = {
         'prebenjamin',
         'pre benjamin',

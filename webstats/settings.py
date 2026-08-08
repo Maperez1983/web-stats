@@ -511,6 +511,10 @@ if USE_S3_MEDIA:
     AWS_QUERYSTRING_EXPIRE = _env_int('AWS_QUERYSTRING_EXPIRE', 60 * 60 * 12)  # 12h
     AWS_S3_ADDRESSING_STYLE = 'virtual'
 
+    # Cabecera de caché para lo que se SUBA a partir de ahora: sin ella el navegador no
+    # tiene permiso explícito para guardar la foto, aunque la URL ya no cambie.
+    AWS_S3_OBJECT_PARAMETERS = {'CacheControl': 'public, max-age=604800'}
+
     AWS_MEDIA_LOCATION = os.getenv('AWS_MEDIA_LOCATION', 'media').strip().strip('/')
     AWS_S3_CUSTOM_DOMAIN = os.getenv('AWS_S3_CUSTOM_DOMAIN', '').strip()
     # Nota: `storages.backends.s3.S3Storage` NO genera URLs firmadas si se usa `custom_domain` a pelo
@@ -520,7 +524,9 @@ if USE_S3_MEDIA:
         AWS_S3_CUSTOM_DOMAIN = ''
     STORAGES = {
         'default': {
-            'BACKEND': 'storages.backends.s3.S3Storage',
+            # URL firmada ESTABLE: la firma seguía siendo nueva en cada render y el
+            # navegador volvía a bajarse los mismos 9,5 MB de fotos en cada visita.
+            'BACKEND': 'webstats.storages.MediaConUrlEstable',
             'OPTIONS': {
                 'bucket_name': AWS_STORAGE_BUCKET_NAME,
                 'region_name': AWS_S3_REGION_NAME,
