@@ -301,6 +301,65 @@ def claim_pending(limit: int = 1, lease_seconds: int = 15 * 60) -> list:
     return cogidos
 
 
+# Un solo vaciado a la vez POR PROCESO. No es la garantia de exclusion -esa es el alquiler de la
+# fila, que funciona entre maquinas-; esto solo evita levantar dos Chromium en el mismo worker.
+_vaciando = threading.Lock()
+
+
+def vaciar_en_segundo_plano(request, *, maximo: int = 2) -> bool:
+    """Hace fotos pendientes desde el propio proceso web, en un hilo aparte.
+
+    POR QUE EXISTE (2026-08-08). El sitio bueno para esto es un proceso aparte
+    (`manage.py fotos_pizarra`), y esta escrito y probado. Pero en produccion no llegamos a
+    verlo funcionar: con `BOARD_SHOT_BASE_URL` puesta en el web y en el worker, la cola estuvo
+    DOS HORAS Y MEDIA sin que nadie cogiera un encargo -ni un intento, ni un error-, y sin
+    acceso a los logs de Render no hay forma de saber por que no arrancan esos bucles.
+
+    Asi que la aplicacion se vacia su propia cola. Esto NO es volver a lo de antes: lo que se
+    perdia entonces era el ENCARGO, que vivia en la memoria del proceso. Ahora el encargo esta
+    en una fila y este hilo es solo un obrero: si se lo lleva un reinicio, el alquiler caduca y
+    la tarea vuelve a la cola. Puede morirse tantas veces como haga falta sin perder nada.
+
+    Se dispara desde la consulta de estado, que es la que hace la ficha mientras espera su foto:
+    o sea, se trabaja justo cuando alguien esta mirando.
+    """
+    if not getattr(settings, "TASK_BOARD_SNAPSHOT_IN_PROCESS", True):
+        return False
+    if not _vaciando.acquire(blocking=False):
+        return False   # ya hay uno en marcha en este proceso
+
+    base_url = request.build_absolute_uri("/").rstrip("/")
+
+    def _trabajar():
+        from django.db import connection
+
+        try:
+            for _ in range(max(1, int(maximo))):
+                cogidos = claim_pending(limit=1)
+                if not cogidos:
+                    return
+                shot = cogidos[0]
+                try:
+                    ok, nota = cumplir_encargo(shot, base_url)
+                except Exception as exc:
+                    ok, nota = False, f"{type(exc).__name__}: {exc}"
+                if ok:
+                    mark_done(shot)
+                elif nota == "__en_cola__":
+                    return
+                else:
+                    mark_failed(shot, nota)
+        finally:
+            _vaciando.release()
+            try:
+                connection.close()
+            except Exception:
+                pass
+
+    threading.Thread(target=_trabajar, name="board-shot-drain", daemon=True).start()
+    return True
+
+
 def mark_done(shot) -> None:
     from .models import TaskBoardShot
 
@@ -711,9 +770,15 @@ def board_snapshot_status_view(request, task_id):
         return JsonResponse(_probe(request, task))
 
     force = str(request.GET.get("force") or "").strip() in {"1", "true", "yes"}
-    # Consultar el estado NO fotografía nada: sólo (re)apunta el encargo. Quien lo cumple es
-    # `manage.py fotos_pizarra`, fuera de este proceso.
     shot = request_snapshot(task, request.user, force=force) if force else shot_for(task)
+
+    # La ficha consulta este endpoint cada 8 s mientras espera su foto. Aprovechamos ese latido
+    # para vaciar la cola desde aqui: asi se trabaja justo cuando alguien esta mirando, y no
+    # dependemos de que arranque ningun bucle en Render (ver `vaciar_en_segundo_plano`).
+    try:
+        vaciar_en_segundo_plano(request)
+    except Exception:
+        logger.exception("board snapshot: no se pudo lanzar el vaciado")
 
     field = getattr(task, "task_preview_image", None)
     return JsonResponse({
