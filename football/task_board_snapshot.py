@@ -56,11 +56,19 @@ _render_gate = threading.Semaphore(1)
 RENDER_GATE_TIMEOUT_SECONDS = 900
 
 # Tiempo de espera del navegador, en función de lo cargado que esté el dibujo (ver `_timeouts_for`).
-# 60 s se quedaban cortos: el log lleva desde el 2 de agosto repitiendo "render vacio" en tareas
+#
+# 60 s se quedaban cortos: el log llevaba desde el 2 de agosto repitiendo "render vacio" en tareas
 # de 12-19 objetos, que no son pesadas. La pagina del editor es grande y en el contenedor arranca
-# despacio, asi que el suelo sube a 90 s. Lo que cuesta un fallo aqui es una tarjeta en verde
-# durante horas; lo que cuesta esperar 30 s mas es nada, porque la foto va en segundo plano.
-SNAPSHOT_TIMEOUT_BASE_MS = 90000
+# despacio, asi que el suelo subio a 90 s.
+#
+# Y 90 TAMPOCO bastan (2026-08-08). Ahora que la cola guarda el motivo se puede ver por fin en vez
+# de suponerlo: la tarea 1033, con 24 objetos, fallo TRES intentos seguidos desde el servidor con
+# "no llego a estar lista en 94s". Mientras, la 1142 salio a la primera. O sea que no es que el
+# render este roto: es que a algunas pizarras no les da tiempo. El suelo sube a 150 s.
+#
+# El razonamiento no cambia y sigue siendo el bueno: esperar mas no cuesta nada porque la foto va
+# en segundo plano; fallar cuesta una ficha con el dibujo viejo durante horas.
+SNAPSHOT_TIMEOUT_BASE_MS = 150000
 SNAPSHOT_TIMEOUT_PER_OBJECT_MS = 180
 SNAPSHOT_TIMEOUT_MAX_MS = 240000
 
