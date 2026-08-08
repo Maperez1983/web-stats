@@ -101,7 +101,17 @@ def detectar_intencion(pregunta: str) -> tuple[str, str]:
     # Las ORDENES se miran ANTES que nada. Si no, "marca a Nico como lesionado" cae en el
     # enrutador de datos por la palabra "lesionado" y responde con la lista, como si lo
     # hubiera hecho.
-    if any(re.search(r"(?:^|\s)" + re.escape(v) + r"(?:\s|$)", q) for v in _PALABRAS_ORDEN):
+    # Con el pronombre pegado detrás: "quítale la convocatoria", "ponle una nota", "sácale
+    # del once". Sin esto, "quita" se reconocía y "quitale" no, así que la orden se colaba
+    # hasta el enrutador de datos y la contestaba una CONSULTA: a «quítale la convocatoria a
+    # Ariel» le respondía con la lista de convocados, que es exactamente parecer que lo has
+    # hecho sin haberlo hecho.
+    #
+    # Sólo le/les/lo/la/los/las, los de tercera persona: son los que actúan sobre alguien o
+    # sobre algo. Con "me" dentro, "PONME donde los entrenos" pasaría a ser una orden y dejaría
+    # de llevarte a los entrenos, que es lo que pide.
+    if any(re.search(r"(?:^|\s)" + re.escape(v) + r"(?:le|les|lo|la|los|las)?(?:\s|$)", q)
+           for v in _PALABRAS_ORDEN):
         return "orden", q
 
     # Por longitud descendente y con frontera de palabra: si no, "sugiere" corta dentro de

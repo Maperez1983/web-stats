@@ -62,6 +62,33 @@ class ConsultasDelAsistenteTests(TestCase):
                 self.assertIsInstance(salida, dict)
                 self.assertTrue(str(salida.get("message") or "").strip())
 
+    def test_una_orden_no_la_contesta_una_consulta(self):
+        """Una orden con el pronombre pegado tiene que leerse como orden.
+
+        «quítale la convocatoria a Ariel» se contestaba con la LISTA de convocados, porque
+        "quita" se reconocía y "quitale" no. Desde fuera eso se lee como un "hecho", que es el
+        peor fallo posible en algo que escribe en la ficha de alguien.
+        """
+        from football.asistente_rapido import detectar_intencion
+
+        for frase in ("quítale la convocatoria a Ariel Palo", "ponle una nota al partido",
+                      "sácale del once", "márcale como ausente"):
+            with self.subTest(frase=frase):
+                self.assertEqual(detectar_intencion(frase)[0], "orden")
+
+        # Y al revés: el pronombre de primera persona NO convierte en orden lo que es una
+        # petición de ir a un sitio.
+        for frase in ("ponme donde los entrenos", "llévame a entrenamientos"):
+            with self.subTest(frase=frase):
+                self.assertNotEqual(detectar_intencion(frase)[0], "orden")
+
+        # Ninguna pregunta del catálogo puede leerse como orden: si se leyera, dejaría de
+        # contestarse y caería al guardián.
+        for frase in ("quién está sancionado", "a quién tengo convocado",
+                      "cuántos partidos hemos ganado", "qué jugadores llevo sin evaluar"):
+            with self.subTest(frase=frase):
+                self.assertNotEqual(detectar_intencion(frase)[0], "orden")
+
     def test_ninguna_frase_se_la_queda_la_consulta_equivocada(self):
         """El orden del catálogo importa: la primera que reconoce se lleva la pregunta."""
         esperado = {
