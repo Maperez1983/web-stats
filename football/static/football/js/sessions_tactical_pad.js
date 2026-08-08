@@ -38826,13 +38826,14 @@
                       const m = bg.match(/url\(["']?(.*?)["']?\)/);
                       if (m && m[1]) realPhoto = m[1];
                     } catch (e) { /* ignore */ }
-                    let kit = (kitArg === true) ? 'visitante' : (kitArg === false ? 'titular' : safeText(kitArg));
+                    const kitPedido = (kitArg === true) ? 'visitante' : (kitArg === false ? 'titular' : safeText(kitArg));
+                    let kit = kitPedido;
+                    // DEFECTO por rol, no CANDADO por rol. Antes esto reescribia la eleccion del
+                    // entrenador: un portero no podia salir con la equipacion de entreno (aunque el
+                    // rondo lo haga con el equipo) y un jugador de campo no podia ponerse de portero
+                    // (aunque la tarea sea de porteros con un companero tirando). Ahora solo se
+                    // rellena lo que NO se ha elegido.
                     if (!kit) kit = isGk ? 'gk_azul' : 'titular';
-                    // Cada rol usa SU color: el portero va con colores propios (gk_*: Azul/Negra/Magenta)
-                    // y el jugador de campo con la equipacion del equipo. Si llega un color que no
-                    // corresponde al rol se normaliza. El editor 2D ya envia el color correcto por rol.
-                    if (isGk && kit.indexOf('gk_') !== 0) kit = 'gk_azul';
-                    if (!isGk && kit.indexOf('gk_') === 0) kit = 'titular';
                     const isAway = (kit === 'visitante');
                     const isDark = isGk || kit === 'chandal' || kit.indexOf('gk_') === 0;
                     const kind = isGk ? 'goalkeeper_local' : (isAway ? 'player_away' : 'player_local');
@@ -38840,7 +38841,7 @@
                     // Traduce (estilo, equipación, portero) -> el 'kind' del asset real a pintar.
                     let assetsMap = {};
                     try { const rawA = el ? el.getAttribute('data-assets') : ''; if (rawA) assetsMap = JSON.parse(rawA) || {}; } catch (e) { assetsMap = {}; }
-                    const FIG_KIND = { titular:'kit_titular', visitante:'kit_visitante', turquesa:'kit_turquesa', blanca:'kit_blanca', chandal:'chandal', gk_azul:'gk_azul', gk_negra:'gk_negra', gk_magenta:'gk_magenta' };
+                    const FIG_KIND = { titular:'kit_titular', visitante:'kit_visitante', turquesa:'kit_turquesa', blanca:'kit_blanca', entreno:'kit_entreno', chandal:'chandal', gk_azul:'gk_azul', gk_negra:'gk_negra', gk_magenta:'gk_magenta' };
                     const assetKindFor = (s) => {
                       if (s === 'photo') return 'foto';
                       if (s === 'disk') return ''; // chapa: imagen estatica por kit (no PlayerAsset)
@@ -38859,7 +38860,13 @@
                     if (!assetUrl && (st === 'sprite' || st === 'figure')) {
                       assetUrl = safeText(el ? el.getAttribute('data-avatar') : '');
                     }
-                    const opts = { style: st, kit: kit, kitDark: isDark };
+                    // La eleccion del entrenador viajaba SOLO como `kit`, y el factory mira
+                    // `kit_slot` para la camiseta 2D (lo dice el propio codigo en
+                    // __webstatsTpadPlaceToken). Por eso elegir equipacion no cambiaba nada.
+                    const SLOT_POR_KIT = { titular:'home', visitante:'away', turquesa:'third',
+                      blanca:'third', entreno:'entreno', chandal:'chandal',
+                      gk_azul:'gk', gk_negra:'gk2', gk_magenta:'gk3' };
+                    const opts = { style: st, kit: kit, kitDark: isDark, kit_slot: SLOT_POR_KIT[kit] || '' };
                     if (st === 'photo' && realPhoto) opts.photoUrl = realPhoto;
                     // El asset real (foto/kit/portero) solo lo pinta la rama figura (photo/sprite);
                     // si existe, gana sobre el muñeco genérico (ver __avUrl en playerTokenFactory).
