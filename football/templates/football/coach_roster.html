@@ -105,6 +105,22 @@
         background: rgba(34, 211, 238, 0.12);
       }
       .tab-refresh { margin-left: auto; }
+      /* Menu de salidas por fila. Va en un popover para que la tabla no crezca a lo ancho con
+         el desplegable de categorias, que es lo que la hacia ilegible. */
+      .row-menu > summary::-webkit-details-marker { display: none; }
+      .row-menu[open] > summary { border-color: rgba(34,211,238,0.55); }
+      .row-menu-box {
+        position: absolute;
+        right: 0;
+        top: calc(100% + 0.35rem);
+        z-index: 40;
+        min-width: 19rem;
+        padding: 0.75rem 0.8rem;
+        border-radius: 12px;
+        border: 1px solid var(--prod-line, rgba(144,161,185,0.35));
+        background: var(--prod-surface, #0f172a);
+        box-shadow: 0 12px 30px rgba(2,6,23,0.35);
+      }
       .alert {
         margin: 0 0 0.85rem;
         padding: 0.6rem 0.7rem;
@@ -1518,8 +1534,14 @@
                 {% endif %}
               </td>
               <td>
+                {% comment %}UNA acción a la vista, el resto dentro. Cada fila llevaba SEIS mandos
+                -Confirmar, Sale del club, dos campos de traspaso, el desplegable de categorías y
+                Mover-: con 30 jugadores eran 180 controles en pantalla, y el desplegable repetía
+                las 10 categorías del club en CADA fila. Lo de todos los días (confirmar) se queda
+                fuera; salir del club, fichar por otro o cambiar de categoría son de una vez al
+                año y viven dentro del menú, que además obliga a abrirlo antes de pulsar.{% endcomment %}
                 {% if player.is_active %}
-                <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+                <div style="display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;">
                   {% if active_club_season and can_edit %}
                     <form method="post" style="margin:0;">
                       {% csrf_token %}
@@ -1533,13 +1555,16 @@
                       {% endif %}
                     </form>
                   {% endif %}
-                  <form method="post" style="margin:0;">
+                  {% if can_edit %}
+                  <details class="row-menu" style="margin:0;position:relative;">
+                    <summary class="inline" style="cursor:pointer;list-style:none;white-space:nowrap;" title="Baja, traspaso o cambio de equipo">Salidas ▾</summary>
+                    <div class="row-menu-box">
+                  <form method="post" style="margin:0 0 .5rem;" onsubmit="return confirm('¿Dar de baja a {{ player.name|escapejs }}? Sale de la plantilla y de las convocatorias. No se borra nada: su ficha y su historial se conservan y puedes reactivarlo en la pestaña Bajas.');">
                   {% csrf_token %}
                   <input type="hidden" name="action" value="deactivate" />
                   <input type="hidden" name="player_id" value="{{ player.id }}" />
-                  <button class="inline" type="submit">Sale del club</button>
+                  <button class="inline" type="submit" title="Lo deja y no ficha por nadie (lo normal en fútbol base)">Deja el equipo</button>
                   </form>
-                  {% if can_edit %}
                   <form method="post" style="margin:0;display:flex;gap:0.35rem;align-items:center;flex-wrap:wrap;" title="Sale de la plantilla y se registra el club por el que fichó (conserva su histórico e identidad).">
                     {% csrf_token %}
                     <input type="hidden" name="action" value="transfer_out" />
@@ -1548,7 +1573,6 @@
                     <input type="text" name="destination_category" list="category-catalog" placeholder="Categoría" aria-label="Categoría/equipo destino" autocomplete="off" style="min-width:7rem;" />
                     <button class="inline-ghost" type="submit">Traspaso</button>
                   </form>
-                  {% endif %}
                   {% if active_club_season and can_edit and club_team_options %}
                   <form method="post" style="margin:0;display:flex;gap:0.35rem;align-items:center;flex-wrap:wrap;">
                     {% csrf_token %}
@@ -1562,6 +1586,9 @@
                     </select>
                     <button class="inline-ghost" type="submit">Mover</button>
                   </form>
+                  {% endif %}
+                    </div>
+                  </details>
                   {% endif %}
                 </div>
                 {% elif not can_edit and active_club_season and not active_club_season_is_current %}
