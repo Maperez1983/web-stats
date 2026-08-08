@@ -26,6 +26,21 @@ class ModeloTapaNombresTests(SimpleTestCase):
         salida = modelo.tapar_nombres("apunta que NICO RUIZ no vino", ["Nico Ruiz"])
         self.assertNotIn("NICO", salida.upper().replace("JUGADOR", ""))
 
+    def test_no_destroza_palabras_normales(self):
+        # Un jugador llamado "Reno" convertía "entRENOs" en "entJUGADORs", y "Nico" dejaba
+        # "tecJUGADOR". El modelo recibía una frase rota y clasificaba cualquier cosa: por eso
+        # "ponme donde los entrenos" acababa llevándote a Plantilla.
+        self.assertEqual(
+            modelo.tapar_nombres("ponme donde los entrenos", ["Reno"]),
+            "ponme donde los entrenos",
+        )
+        self.assertEqual(
+            modelo.tapar_nombres("ver el aspecto tecnico", ["Nico"]),
+            "ver el aspecto tecnico",
+        )
+        # Y el nombre suelto sí se tapa.
+        self.assertIn("JUGADOR", modelo.tapar_nombres("avisa a Reno", ["Reno"]))
+
     def test_ignora_nombres_demasiado_cortos(self):
         # Un nombre de dos letras taparía medio texto.
         salida = modelo.tapar_nombres("ve a la biblioteca", ["Al"])

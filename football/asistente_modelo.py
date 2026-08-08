@@ -82,7 +82,10 @@ def tapar_nombres(frase: str, nombres) -> str:
     # suelto, que es justo un apellido viajando.
     for nombre in sorted({str(n or "").strip() for n in (nombres or []) if len(str(n or "").strip()) >= 3},
                          key=len, reverse=True):
-        texto = re.sub(re.escape(nombre), "JUGADOR", texto, flags=re.IGNORECASE)
+        # Con frontera de palabra. Sin ella, un jugador llamado "Reno" convertia
+        # "entRENOs" en "entJUGADORs" y "Nico" dejaba "tecJUGADOR": el modelo recibia una
+        # frase destrozada y clasificaba cualquier cosa. Costo verlo en produccion.
+        texto = re.sub(r"\b" + re.escape(nombre) + r"\b", "JUGADOR", texto, flags=re.IGNORECASE)
     return texto
 
 
