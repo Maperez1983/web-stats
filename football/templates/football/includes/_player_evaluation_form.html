@@ -8,6 +8,7 @@ propia página; el POST sigue yendo a la ficha, que ya sabe guardarlo.{% endcomm
           <input type="hidden" name="form_action" value="evaluation" />
           {% if selected_club_season %}<input type="hidden" name="club_season_id" value="{{ selected_club_season.id }}" />{% endif %}
           <div class="form-grid">
+            {% include 'football/includes/_form_section.html' with titulo='De qué valoración hablamos' %}
             <label>Tipo
               <select name="evaluation_type">
                 {% for value, label in evaluation_type_choices %}
@@ -105,6 +106,7 @@ propia página; el POST sigue yendo a la ficha, que ya sabe guardarlo.{% endcomm
                 });
               })();
             </script>
+            {% include 'football/includes/_form_section.html' with titulo='Notas por área' nota='del 1 al 10' %}
             <label>Social/grupo
               <input type="number" name="social_rating" min="1" max="10" step="0.1" data-eval-subrating />
             </label>
@@ -132,6 +134,7 @@ propia página; el POST sigue yendo a la ficha, que ya sabe guardarlo.{% endcomm
             <div style="grid-column:1 / -1;padding:0.6rem 0.75rem;border:1px dashed rgba(148,163,184,0.4);border-radius:10px;">
               <span class="subtle">Wellness, RPE/minutos, tests físicos (sprint, CMJ, Yo-Yo, 505, Copenhagen) y madurez/PHV se registran y visualizan ahora en la pestaña <a href="{% url 'player-detail' player.id %}?tab=physical"><strong>Físico</strong></a> — una sola fuente, sin doble entrada. Esta evaluación se centra en la valoración del cuerpo técnico.</span>
             </div>
+            {% include 'football/includes/_form_section.html' with titulo='Lo que hay que escribir' nota='esto es lo que lee el jugador' %}
             <label style="grid-column:1 / -1;">Notas de evidencia
               <textarea name="evidence_notes" rows="3" placeholder="Condiciones del test, fatiga, muestra disponible, observaciones objetivas..."></textarea>
             </label>

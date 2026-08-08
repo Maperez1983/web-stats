@@ -266,6 +266,7 @@ lo pone el molde común y aquí queda sólo lo suyo: cabecera, hitos, formulario
               {% csrf_token %}
               <input type="hidden" name="action" value="save-record" />
               <div class="form-grid">
+                {% include 'football/includes/_form_section.html' with titulo='Qué se ha hecho' %}
                 <label>Lesión
                   <input type="text" name="injury" value="{{ record.injury }}" maxlength="180" />
                 </label>
@@ -291,6 +292,7 @@ lo pone el molde común y aquí queda sólo lo suyo: cabecera, hitos, formulario
                 <label>Grado
                   <input type="number" name="severity_grade" min="1" max="3" value="{{ record.severity_grade|default:'' }}" />
                 </label>
+                {% include 'football/includes/_form_section.html' with titulo='Cuándo' nota='de la lesión al alta' %}
                 <label>Fecha lesión
                   <input type="date" name="injury_date" value="{{ record.injury_date|date:'Y-m-d' }}" />
                 </label>
@@ -306,6 +308,7 @@ lo pone el molde común y aquí queda sólo lo suyo: cabecera, hitos, formulario
                 <label>Fecha alta
                   <input type="date" name="return_date" value="{{ record.return_date|date:'Y-m-d' }}" />
                 </label>
+                {% include 'football/includes/_form_section.html' with titulo='Cómo va' %}
                 <label>Estado de la lesión
                   <select name="injury_status">
                     <option value="active" {% if not record.is_recovered %}selected{% endif %}>En curso</option>

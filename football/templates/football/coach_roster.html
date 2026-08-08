@@ -1372,6 +1372,7 @@
               <form method="post" class="roster-create-grid">
                 {% csrf_token %}
                 <input type="hidden" name="action" value="add" />
+                {% include 'football/includes/_form_section.html' with titulo='Quién es' %}
                 <label class="span-2">
                   Nombre completo
                   <input type="text" name="full_name" maxlength="180" required />
@@ -1388,6 +1389,7 @@
                   Equipo de procedencia
                   <input type="text" name="origin_team" maxlength="160" />
                 </label>
+                {% include 'football/includes/_form_section.html' with titulo='Físico' %}
                 <label>
                   Altura (cm)
                   <input type="number" name="height_cm" min="80" max="230" />

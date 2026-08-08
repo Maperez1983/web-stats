@@ -1,0 +1,12 @@
+{% comment %}Cabecera de sección dentro de un formulario largo.
+
+Nace de la ficha del jugador: 49 campos en fila india, sin una sola cabecera, con el contacto
+-lo que más se usa- en el puesto 30. Al repartirlo en secciones se vio que había media docena de
+formularios igual por toda la app, así que la cabecera vive aquí y no copiada seis veces.
+
+Los estilos van EN LÍNEA a propósito: cada pantalla declara su CSS en su cabecera y una clase
+compartida se quedaría sin pintar en la mitad de ellas -que es justo lo que le pasó a este
+formulario cuando se sacó a su propia página-.
+
+    {% include 'football/includes/_form_section.html' with titulo='Contacto' nota='casi todos son menores' %}
+{% endcomment %}<div class="form-section" style="grid-column:1/-1;margin:0.9rem 0 -0.15rem;padding-top:0.7rem;font-size:0.72rem;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:rgba(255,242,199,0.92);border-top:1px solid rgba(148,163,184,0.22);">{{ titulo }}{% if nota %}<span style="text-transform:none;letter-spacing:0;font-weight:500;opacity:.75;"> · {{ nota }}</span>{% endif %}</div>

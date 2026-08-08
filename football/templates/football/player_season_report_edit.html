@@ -102,6 +102,7 @@
 	        <form method="post" class="card">
 	          {% csrf_token %}
 	          <div style="margin-bottom:14px;">
+	            {% include 'football/includes/_form_section.html' with titulo='Qué se enseña en los anillos' nota='máximo 4' %}
 	            <label style="margin-top:0;">KPIs del informe (anillos, máx. 4)</label>
 	            <div class="hint" style="margin-top:6px;">Se usan en el resumen visual del PDF. Si no marcas nada, se usa el set por defecto.</div>
             <div style="display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top:10px;">
@@ -153,6 +154,7 @@
 	          </div>
 	          <div class="rating-average">Media calculada: <strong id="ratingAverageValue">—</strong></div>
 	          <div class="grid" id="ratingsGrid">
+	            {% include 'football/includes/_form_section.html' with titulo='Sus notas' nota='del 1 al 10' %}
 	            <label>Valoración global (1-10)
 	              <input type="number" name="overall_rating" min="1" max="10" step="0.1" value="{{ report.overall_rating|default_if_none:''|unlocalize }}" data-rating-input />
 	            </label>
@@ -179,6 +181,7 @@
             </label>
           </div>
 
+	            {% include 'football/includes/_form_section.html' with titulo='Lo que se escribe' %}
           <label>Fortalezas
             <textarea name="strengths" placeholder="3–6 puntos claros. Ej: juego entre líneas, último pase, agresividad defensiva...">{{ report.strengths|default:'' }}</textarea>
           </label>
