@@ -13,6 +13,12 @@ página.{% endcomment %}
 <style>
   .personal-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(180px, 220px); gap: 0.9rem; align-items: start; }
   .personal-layout > * { min-width: 0; }
+  .personal-layout .form-section {
+    margin: 0.9rem 0 -0.15rem; padding-top: 0.7rem; font-size: 0.72rem; font-weight: 800;
+    letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 242, 199, 0.92);
+    border-top: 1px solid var(--prod-line, rgba(144, 161, 185, 0.22));
+  }
+  .personal-layout .form-section:first-of-type { margin-top: 0; padding-top: 0; border-top: 0; }
   .personal-layout .form-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; }
   .personal-layout label { display: flex; flex-direction: column; font-size: 0.75rem; letter-spacing: 0.06em; text-transform: uppercase; color: var(--prod-muted, rgba(203,213,225,0.7)); gap: 0.35rem; }
   .personal-layout input, .personal-layout select, .personal-layout textarea {
@@ -51,15 +57,37 @@ página.{% endcomment %}
             <input type="hidden" name="form_action" value="profile" />
             <p class="subtle" style="margin:0 0 0.75rem;">Ficha editable para el staff técnico: identidad, perfil deportivo y documentación básica del jugador.</p>
             <div class="form-grid">
+              <div class="form-section" style="grid-column:1/-1;">Quién es</div>
               <label>Nombre completo
                 <input type="text" name="full_name" value="{{ player.full_name|default:player.name }}" />
               </label>
               <label>Apodo
                 <input type="text" name="nickname" value="{{ player.nickname|default:'' }}" placeholder="Ej. Pepe" />
               </label>
+              <label>Fecha nacimiento
+                <input type="date" name="birth_date" value="{{ player.birth_date|date:'Y-m-d' }}" />
+              </label>
               <label>Dorsal
                 <input type="number" name="number" min="0" value="{{ player.number|default:'' }}" />
               </label>
+              <div class="form-section" style="grid-column:1/-1;">Contacto<span style="text-transform:none;letter-spacing:0;font-weight:500;opacity:.75;"> · de quién es el teléfono importa: casi todos son menores</span></div>
+              <label>Teléfono
+                <input type="tel" name="phone" value="{{ player.phone|default:'' }}" placeholder="Ej. 600 000 000" />
+              </label>
+              <label>Email de contacto
+                <input type="email" name="contact_email" value="{{ player.contact_email|default:'' }}" placeholder="madre@casa.com" autocapitalize="none" autocorrect="off" spellcheck="false" />
+              </label>
+              <p style="grid-column:1/-1;margin:.1rem 0 .3rem;font-size:.78rem;color:var(--prod-muted);">
+                A este email le llega la invitación al portal del jugador. En cantera, el del padre o la madre.
+              </p>
+              <label>¿De quién es ese email?
+                <input type="text" name="contact_name" value="{{ player.contact_name|default:'' }}" placeholder="El jugador, su padre, su madre…" />
+              </label>
+              <label style="display:flex;align-items:center;gap:.5rem;text-transform:none;letter-spacing:normal;font-size:.85rem;">
+                <input type="checkbox" name="contact_is_guardian" value="1" {% if player.contact_is_guardian %}checked{% endif %} style="width:auto;" />
+                Es de un familiar o tutor
+              </label>
+              <div class="form-section" style="grid-column:1/-1;">Cómo juega</div>
               <label>Posición actual
                 {% with current_position=player.position|default:stats.position %}
                 <select name="position">
@@ -69,10 +97,6 @@ página.{% endcomment %}
                   {% endfor %}
                 </select>
                 {% endwith %}
-              </label>
-              <label style="display:flex;align-items:center;gap:0.5rem;">
-                <input type="checkbox" name="has_federative_license" value="1" {% if player.has_federative_license %}checked{% endif %} />
-                Ficha federativa (fichado)
               </label>
               <label>Posición preferida
                 <select name="preferred_position">
@@ -89,9 +113,6 @@ página.{% endcomment %}
                   <option value="{{ value }}" {% if player.previous_season_position == value %}selected{% endif %}>{{ label }} ({{ value }})</option>
                   {% endfor %}
                 </select>
-              </label>
-              <label>Fecha nacimiento
-                <input type="date" name="birth_date" value="{{ player.birth_date|date:'Y-m-d' }}" />
               </label>
               <label>Pie dominante
                 <select name="dominant_foot">
@@ -111,23 +132,13 @@ página.{% endcomment %}
                   {% endfor %}
                 </div>
               </div>
-              <div style="grid-column:1/-1;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--prod-muted);font-weight:800;border-top:1px solid rgba(148,163,184,.18);padding-top:.7rem;margin-top:.3rem;">Enlaces externos</div>
-              <label>Perfil La Preferente (URL)
-                <input type="url" name="preferente_profile_url" value="{{ player.preferente_profile_url|default:'' }}" placeholder="https://www.lapreferente.com/J..." />
-              </label>
-              <label>Perfil Transfermarkt (URL)
-                <input type="url" name="transfermarkt_url" value="{{ player.transfermarkt_url|default:'' }}" placeholder="https://www.transfermarkt.es/..." />
-              </label>
-              <label>Perfil BeSoccer (URL)
-                <input type="url" name="besoccer_url" value="{{ player.besoccer_url|default:'' }}" placeholder="https://es.besoccer.com/jugador/..." />
-              </label>
               {% comment %}Aqui vivia el bloque "Avatar" (tono de piel, grado, color de pelo,
               peinado y vista previa). El avatar tiene ahora su propia pantalla, en
               Plantilla -> Avatares, donde se rellena el equipo entero de una vez; tenerlo
               tambien aqui era pedir el mismo dato en dos sitios, que es como acaban
               contradiciendose. La ficha guarda a la PERSONA (nacimiento, altura, complexion),
               que es de donde salen esos avatares.{% endcomment %}
-              <div style="grid-column:1/-1;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--prod-muted);font-weight:800;border-top:1px solid rgba(148,163,184,.18);padding-top:.7rem;margin-top:.3rem;">Físico y contacto</div>
+              <div class="form-section" style="grid-column:1/-1;">Físico</div>
               <label>Altura (cm)
                 <input type="number" name="height_cm" min="100" max="240" value="{{ player.height_cm|default:'' }}" />
               </label>
@@ -143,23 +154,7 @@ página.{% endcomment %}
                 <input type="number" step="0.01" min="0" name="weight_kg_base" value="{{ player.weight_kg|unlocalize|default:'' }}" />
               </label>
 
-              <div style="grid-column:1/-1;margin:0.5rem 0 -0.15rem;font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;opacity:0.6;font-weight:800;">Contacto y club</div>
-              <label>Teléfono
-                <input type="tel" name="phone" value="{{ player.phone|default:'' }}" placeholder="Ej. 600 000 000" />
-              </label>
-              <label>Email de contacto
-                <input type="email" name="contact_email" value="{{ player.contact_email|default:'' }}" placeholder="madre@casa.com" autocapitalize="none" autocorrect="off" spellcheck="false" />
-              </label>
-              <label>¿De quién es ese email?
-                <input type="text" name="contact_name" value="{{ player.contact_name|default:'' }}" placeholder="El jugador, su padre, su madre…" />
-              </label>
-              <label style="display:flex;align-items:center;gap:.5rem;text-transform:none;letter-spacing:normal;font-size:.85rem;">
-                <input type="checkbox" name="contact_is_guardian" value="1" {% if player.contact_is_guardian %}checked{% endif %} style="width:auto;" />
-                Es de un familiar o tutor
-              </label>
-              <p style="grid-column:1/-1;margin:.1rem 0 .3rem;font-size:.78rem;color:var(--prod-muted);">
-                A este email le llega la invitación al portal del jugador. En cantera, el del padre o la madre.
-              </p>
+              <div class="form-section" style="grid-column:1/-1;">De dónde viene</div>
               <label>Club de origen
                 <input type="text" name="origin_team" value="{{ player.origin_team|default:'' }}" placeholder="Club de procedencia" />
               </label>
@@ -167,19 +162,6 @@ página.{% endcomment %}
                 <input type="text" name="current_club" value="{{ player.current_club|default:'' }}" placeholder="Club actual" />
               </label>
 
-              <div style="grid-column:1/-1;margin:0.5rem 0 -0.15rem;font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;opacity:0.6;font-weight:800;">Representación</div>
-              <label>¿Tiene agente?
-                <select name="has_agent" id="player-has-agent">
-                  <option value="0" {% if not player.has_agent %}selected{% endif %}>No</option>
-                  <option value="1" {% if player.has_agent %}selected{% endif %}>Sí</option>
-                </select>
-              </label>
-              <label class="agent-field" {% if not player.has_agent %}style="display:none;"{% endif %}>Nombre / contacto del agente
-                <input type="text" name="agent_name" value="{{ player.agent_name|default:'' }}" placeholder="Nombre del agente o agencia" />
-              </label>
-              <label class="agent-field" {% if not player.has_agent %}style="display:none;"{% endif %}>Teléfono del agente
-                <input type="tel" name="agent_phone" value="{{ player.agent_phone|default:'' }}" placeholder="Ej. 600 000 000" />
-              </label>
               <script>
                 (function () {
                   var sel = document.getElementById('player-has-agent');
@@ -193,7 +175,7 @@ página.{% endcomment %}
                 })();
               </script>
 
-              <div style="grid-column:1/-1;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--prod-muted);font-weight:800;border-top:1px solid rgba(148,163,184,.18);padding-top:.7rem;margin-top:.3rem;">Documentación</div>
+              <div class="form-section" style="grid-column:1/-1;">Documentación</div>
               <label>Foto del jugador
                 <input type="file" name="player_photo" accept="image/*" />
               </label>
@@ -203,12 +185,35 @@ página.{% endcomment %}
                 <a href="{{ player_license_url }}" target="_blank" rel="noopener" class="subtle" style="margin-top:0.4rem;">Ver licencia actual</a>
                 {% endif %}
               </label>
+              <label style="display:flex;align-items:center;gap:0.5rem;">
+                <input type="checkbox" name="has_federative_license" value="1" {% if player.has_federative_license %}checked{% endif %} />
+                Ficha federativa (fichado)
+              </label>
               <label>Nº licencia federativa
                 <input type="text" name="federation_license_number" maxlength="80" value="{{ player.federation_license_number|default:'' }}" placeholder="Opcional" />
               </label>
               <label>Caducidad de la licencia
                 <input type="date" name="federation_license_expires_at" value="{{ player.federation_license_expires_at|date:'Y-m-d' }}" />
                 {% if license_expiry_badge %}<span class="pill {{ license_expiry_badge.tone }}" style="margin-top:0.4rem;">{{ license_expiry_badge.label }}</span>{% endif %}
+              </label>
+              {% comment %}Agente, contrato, cláusula de rescisión y perfiles de Transfermarkt no
+              pintan nada en un prebenjamín, y eran 10 de los 49 campos a la vista. Se pliegan: el
+              que los necesita los abre.{% endcomment %}
+              <details class="form-extra" style="grid-column:1/-1;margin-top:.4rem;">
+                <summary style="cursor:pointer;font-weight:800;font-size:.78rem;letter-spacing:.06em;text-transform:uppercase;color:var(--prod-muted,rgba(203,213,225,.7));padding:.5rem 0;">Contrato, agente y enlaces de ojeo</summary>
+                <div class="form-grid" style="margin-top:.6rem;">
+              <div style="grid-column:1/-1;margin:0.5rem 0 -0.15rem;font-size:0.72rem;letter-spacing:0.08em;text-transform:uppercase;opacity:0.6;font-weight:800;">Agente</div>
+              <label>¿Tiene agente?
+                <select name="has_agent" id="player-has-agent">
+                  <option value="0" {% if not player.has_agent %}selected{% endif %}>No</option>
+                  <option value="1" {% if player.has_agent %}selected{% endif %}>Sí</option>
+                </select>
+              </label>
+              <label class="agent-field" {% if not player.has_agent %}style="display:none;"{% endif %}>Nombre / contacto del agente
+                <input type="text" name="agent_name" value="{{ player.agent_name|default:'' }}" placeholder="Nombre del agente o agencia" />
+              </label>
+              <label class="agent-field" {% if not player.has_agent %}style="display:none;"{% endif %}>Teléfono del agente
+                <input type="tel" name="agent_phone" value="{{ player.agent_phone|default:'' }}" placeholder="Ej. 600 000 000" />
               </label>
               <label>Inicio de contrato
                 <input type="date" name="contract_start" value="{{ player.contract_start|date:'Y-m-d' }}" />
@@ -223,6 +228,18 @@ página.{% endcomment %}
               <label>Notas de contrato
                 <input type="text" name="contract_notes" maxlength="200" value="{{ player.contract_notes|default:'' }}" placeholder="Salario, bonus, vinculación…" />
               </label>
+              <label>Perfil La Preferente (URL)
+                <input type="url" name="preferente_profile_url" value="{{ player.preferente_profile_url|default:'' }}" placeholder="https://www.lapreferente.com/J..." />
+              </label>
+              <label>Perfil Transfermarkt (URL)
+                <input type="url" name="transfermarkt_url" value="{{ player.transfermarkt_url|default:'' }}" placeholder="https://www.transfermarkt.es/..." />
+              </label>
+              <label>Perfil BeSoccer (URL)
+                <input type="url" name="besoccer_url" value="{{ player.besoccer_url|default:'' }}" placeholder="https://es.besoccer.com/jugador/..." />
+              </label>
+                </div>
+              </details>
+              <div class="form-section" style="grid-column:1/-1;">Sanción</div>
               <label>Sanción manual
                 <select name="manual_sanction_active">
                   <option value="0" {% if not player.manual_sanction_active %}selected{% endif %}>No</option>
