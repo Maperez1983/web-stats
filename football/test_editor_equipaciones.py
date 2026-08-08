@@ -26,6 +26,13 @@ class ElegirEquipacionTests(SimpleTestCase):
         selectores en blanco: era imposible ver cuál estabas eligiendo."""
         self.assertIn("--sw", self.barra)
         self.assertRegex(self.barra, r"background:\s*var\(--sw\)\s*!important")
+        # Y ADEMAS en el propio elemento: la regla de hoja perdia de forma intermitente
+        # segun cuando terminaba de montarse la barra. Un inline con !important esta por
+        # encima de cualquier hoja, gane quien gane la carrera.
+        muestras = re.findall(r'class="edc-swatch[^"]*"[^>]*style="([^"]+)"', self.barra)
+        self.assertEqual(len(muestras), 9, "tienen que ser las 9 equipaciones")
+        for estilo in muestras:
+            self.assertRegex(estilo, r"background:[^;]+!important")
 
     def test_y_tambien_ganan_en_MODO_CLARO(self):
         """Con las dos reglas en !important manda la más específica, y en claro
