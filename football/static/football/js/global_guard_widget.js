@@ -1455,6 +1455,33 @@
       // misma que usa el banco de jugadores. Si no estamos en el editor no hay nada que hacer.
       try {
         const orden = response && response.accion;
+        // REGISTRAR UNA ACCION DEL PARTIDO. Se manda al MISMO endpoint que usa la pantalla de
+        // registro, para no crear una segunda fuente de verdad: misma taxonomia, mismo dedupe,
+        // mismas reglas. Y el rival por SU endpoint: si un gol suyo entra por el nuestro,
+        // cuenta como gol nuestro.
+        if (orden && orden.tipo === 'registrar_accion') {
+          const destino = orden.del_rival ? '/registro-acciones/rival/' : '/registro-acciones/guardar/';
+          const datos = new FormData();
+          datos.append('action_type', String(orden.action_type || ''));
+          if (orden.player_id) datos.append('player', String(orden.player_id));
+          if (orden.minute !== '' && orden.minute !== null) datos.append('minute', String(orden.minute));
+          // Un identificador propio por accion: si el dedo se va o la red repite el envio, el
+          // endpoint ya sabe descartarlo.
+          datos.append('client_event_uid', 'asistente-' + Date.now() + '-' + Math.round(Math.random() * 1e6));
+          const idPartido = document.querySelector('[name=match_id]')?.value
+            || document.querySelector('[data-match-id]')?.dataset.matchId || '';
+          if (idPartido) datos.append('match_id', String(idPartido));
+          fetch(destino, { method: 'POST', credentials: 'same-origin', body: datos,
+                           headers: { 'X-CSRFToken': (document.cookie.match(/csrftoken=([^;]+)/) || [])[1] || '' } })
+            .then((r) => {
+              if (r.ok || r.redirected) {
+                renderMessage('assistant', `Anotado: ${orden.resumen}. Si me he colado, quítalo en la pantalla.`, ['Anotado']);
+              } else {
+                renderMessage('assistant', 'No he podido anotarlo. Hazlo con los botones.', ['No se pudo']);
+              }
+            })
+            .catch(() => renderMessage('assistant', 'No he podido anotarlo. Hazlo con los botones.', ['No se pudo']));
+        }
         if (orden && orden.tipo === 'colocar_fichas' && Array.isArray(orden.fichas)) {
           const colocar = window.__webstatsTpadPlaceToken;
           if (typeof colocar !== 'function') {

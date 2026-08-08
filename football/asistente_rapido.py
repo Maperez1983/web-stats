@@ -357,3 +357,59 @@ def leer_grupos(texto: str):
 def etiqueta_equipacion(clave: str) -> str:
     return {"local": "local", "visitante": "visitante", "tercera": "tercera",
             "entreno": "de entreno", "chandal": "de chándal"}.get(clave, clave)
+
+
+# --- REGISTRO DE ACCIONES DE PARTIDO ----------------------------------------------------------
+# Dictar una accion en la banda: "gol de Nacho en el 34", "amarilla a Ayala".
+#
+# QUE LO HACE DISTINTO DE TODO LO DEMAS: aqui NO se pide confirmacion. Con el partido en marcha
+# no vas a leer "¿confirmo?" y contestar "si" mientras el balon rueda. Se anota y se ofrece
+# deshacer, que es la misma seguridad con el coste al otro lado.
+#
+# El vocabulario son las palabras EXACTAS de la pantalla de registro. El endpoint no valida el
+# tipo de accion contra ningun catalogo -lo que le mandes, se guarda-, asi que inventarse una
+# etiqueta ensucia sus estadisticas sin que salte ningun error.
+ACCIONES_PARTIDO = (
+    (("gol", "goles", "marcado", "marcaron", "han marcado"), "GOL"),
+    (("amarilla", "tarjeta amarilla"), "Amarilla"),
+    (("roja", "tarjeta roja", "expulsion", "expulsado"), "Roja"),
+    (("disparo", "tiro", "chut", "remate"), "Disparo"),
+    (("falta", "faltas"), "Falta"),
+    (("parada", "paradon"), "Parada"),
+    (("regate", "regates"), "Regate"),
+    (("pase clave", "asistencia", "asiste"), "Pase clave"),
+    (("pase a la espalda",), "Pase a la espalda"),
+    (("corner", "saque de esquina", "esquina"), "Saque de esquina a favor"),
+)
+
+
+def accion_de_partido(frase):
+    """(tipo de accion, es_del_rival) o (None, False)."""
+    q = _sin_tildes(frase)
+    # El RIVAL va por otro endpoint: si un gol suyo entra por el nuestro, cuenta como gol
+    # nuestro. Es el fallo mas caro que se puede cometer aqui.
+    del_rival = any(p in q for p in ("del rival", "rival", "en contra", "nos han", "nos hacen",
+                                     "encajamos", "suyo", "suya", "ellos"))
+    mejor = None
+    for palabras, etiqueta in ACCIONES_PARTIDO:
+        for p in palabras:
+            if re.search(r"(?:^|\s)" + re.escape(p) + r"(?:\s|$)", q) and (mejor is None or len(p) > mejor[0]):
+                mejor = (len(p), etiqueta)
+    if mejor is None:
+        return None, del_rival
+    etiqueta = mejor[1]
+    if etiqueta == "Saque de esquina a favor" and del_rival:
+        etiqueta = "Saque de esquina en contra"
+    return etiqueta, del_rival
+
+
+def minuto_de_la_frase(frase):
+    """El minuto: «en el 34», «minuto 34», «al 34»."""
+    q = _sin_tildes(frase)
+    m = re.search(r"\b(?:minuto|min|en el|al)\s+(\d{1,3})\b", q)
+    if not m:
+        m = re.search(r"\b(\d{1,3})\b", q)
+    if not m:
+        return None
+    valor = int(m.group(1))
+    return valor if 0 <= valor <= 130 else None
