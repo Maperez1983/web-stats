@@ -2299,12 +2299,39 @@
       <div class="panel"><p class="empty">El módulo no está listo por migraciones pendientes.</p></div>
       {% else %}
 
-      {% if main_tab == 'create' and not create_page and home_next_session %}
+      {% comment %}Lo que toca no siempre es un entreno: el sábado 8 tocaba partido contra el
+      Mijas y aquí se anunciaba "Próxima sesión: Biblioteca Interactiva". Si el partido llega
+      antes que el siguiente entrenamiento, manda el partido.{% endcomment %}
+      <style>
+        /* El día ("SÁB") iba en el color de marca sobre su propia pastilla clara: en modo
+           claro se queda en 1.85 de contraste. Se oscurece igual que en la barra de partido. */
+        .semana-dia { color: var(--semana-tinte); }
+        .semana-chip--partido { --semana-tinte: #f4b400; }
+        .semana-chip--sesion { --semana-tinte: #8ff0b3; }
+        :root[data-theme="light"] .semana-chip--partido { --semana-tinte: #8a6300; }
+        :root[data-theme="light"] .semana-chip--sesion { --semana-tinte: #166534; }
+      </style>
+      {% if main_tab == 'create' and not create_page and home_next_match %}
       <section class="panel" style="margin-bottom:1rem;">
         <p class="panel-kicker">Esta semana</p>
         <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
-          <div style="width:54px;height:54px;border-radius:13px;flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(180deg,rgba(34,197,94,0.18),rgba(34,197,94,0.05));border:1px solid rgba(34,197,94,0.32);">
-            <span style="font-size:0.6rem;letter-spacing:0.08em;font-weight:800;color:#8ff0b3;text-transform:uppercase;">{{ home_next_session.date|date:"D" }}</span>
+          <div style="width:54px;height:54px;border-radius:13px;flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(180deg,rgba(244,180,0,0.20),rgba(244,180,0,0.06));border:1px solid rgba(244,180,0,0.38);" class="semana-chip--partido">
+            <span class="semana-dia" style="font-size:0.6rem;letter-spacing:0.08em;font-weight:800;text-transform:uppercase;">{{ home_next_match.date|date:"D" }}</span>
+            <span style="font-size:1.3rem;font-weight:800;line-height:1;">{{ home_next_match.date|date:"d" }}</span>
+          </div>
+          <div style="min-width:0;">
+            <strong>Partido{% if home_next_match.en_casa %} en casa{% else %} fuera{% endif %}: {{ home_next_match.rival }}</strong>
+            <div class="meta" style="margin-top:2px;">{{ home_next_match.date|date:"l, d/m" }}{% if home_next_match.time %} · {{ home_next_match.time }}{% endif %}{% if home_next_session %} · próximo entrenamiento el {{ home_next_session.date|date:"l d/m" }}{% endif %}</div>
+          </div>
+          <a class="button secondary" style="margin-left:auto;" href="{{ home_next_match.url }}">Abrir partido →</a>
+        </div>
+      </section>
+      {% elif main_tab == 'create' and not create_page and home_next_session %}
+      <section class="panel" style="margin-bottom:1rem;">
+        <p class="panel-kicker">Esta semana</p>
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">
+          <div style="width:54px;height:54px;border-radius:13px;flex:0 0 auto;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(180deg,rgba(34,197,94,0.18),rgba(34,197,94,0.05));border:1px solid rgba(34,197,94,0.32);" class="semana-chip--sesion">
+            <span class="semana-dia" style="font-size:0.6rem;letter-spacing:0.08em;font-weight:800;text-transform:uppercase;">{{ home_next_session.date|date:"D" }}</span>
             <span style="font-size:1.3rem;font-weight:800;line-height:1;">{{ home_next_session.date|date:"d" }}</span>
           </div>
           <div style="min-width:0;">
