@@ -140,66 +140,6 @@ services:
       - key: DEBUG
         value: "false"
 
-  # Fotos HD de las pizarras de tarea. Servicio APARTE a propósito.
-  #
-  # Antes la foto se hacía en un hilo dentro del servidor web y se perdía sin dejar rastro cada vez
-  # que Render reiniciaba el worker —cosa que levantar Chromium junto a Ollama en 2 GB provoca por
-  # sí solo—. Aquí Chromium no compite con nadie, y sobre todo: el encargo vive en la base de datos
-  # (`TaskBoardShot`), así que si este servicio se cae o se despliega a mitad de una foto, el
-  # alquiler caduca y la tarea vuelve a la cola sola.
-  #
-  # Se asoma al sitio de verdad por HTTP, como lo haría una persona abriendo el editor: por eso
-  # necesita BOARD_SHOT_BASE_URL y los navegadores de Playwright.
-  - type: worker
-    name: web-stats-fotos-pizarra
-    runtime: python
-    plan: standard
-    branch: main
-    buildCommand: ./build.sh
-    startCommand: python manage.py fotos_pizarra --bucle --espera 60
-    autoDeploy: true
-    envVars:
-      - key: PYTHON_VERSION
-        value: "3.11.9"
-      - key: PYTHONUNBUFFERED
-        value: "1"
-      - key: RUN_MIGRATIONS
-        value: "false"
-      - key: RUN_COLLECTSTATIC
-        value: "false"
-      # Ollama NO: aquí sólo hace falta Chromium, y compartir los 2 GB con un LLM es justo lo que
-      # hacía que el proceso muriera a mitad de foto.
-      - key: INSTALL_OLLAMA
-        value: "false"
-      - key: ENABLE_OLLAMA
-        value: "false"
-      - key: INSTALL_PLAYWRIGHT_BROWSERS
-        value: "true"
-      - key: INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME
-        value: "true"
-      - key: PLAYWRIGHT_BROWSERS_PATH
-        value: "/opt/render/project/src/.pw-browsers"
-      # A qué sitio asomarse para abrir el editor. Sin esto el comando no hace nada y lo dice.
-      - key: BOARD_SHOT_BASE_URL
-        sync: false
-      # Las fotos se guardan en el MISMO S3 que el web: si no, la ficha no las encontraría.
-      - key: USE_S3_MEDIA
-        value: "true"
-      - key: AWS_ACCESS_KEY_ID
-        sync: false
-      - key: AWS_SECRET_ACCESS_KEY
-        sync: false
-      - key: AWS_STORAGE_BUCKET_NAME
-        sync: false
-      - key: AWS_S3_REGION_NAME
-        sync: false
-      - key: SECRET_KEY
-        sync: false
-      - key: DATABASE_URL
-        sync: false
-      - key: DEBUG
-        value: "false"
-
   - type: worker
     name: web-stats-ollana-operator
     runtime: python
@@ -240,6 +180,17 @@ services:
         sync: false
       - key: AWS_S3_REGION_NAME
         sync: false
+      # Fotos HD de las pizarras de tarea. Aquí y no en un servicio nuevo: este worker NO arranca
+      # Ollama (sólo lo hace el web), así que tiene su memoria libre para Chromium, y ya lleva dos
+      # bucles en segundo plano con este mismo patrón. Lo que hacía falta de verdad no era otra
+      # máquina, era que el encargo dejara de vivir en la RAM del servidor web.
+      #
+      # A qué sitio asomarse para abrir el editor (https://app.segundajugada.es). Sin esto el
+      # comando no fotografía nada y lo dice por el log.
+      - key: BOARD_SHOT_BASE_URL
+        sync: false
+      - key: BOARD_SHOT_INTERVAL_SECONDS
+        value: "60"
       - key: OLLANA_OPERATOR_ENABLED
         value: "true"
       - key: OLLANA_OPERATOR_WORKSPACE_ID

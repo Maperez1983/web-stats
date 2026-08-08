@@ -111,6 +111,28 @@ fi
   done
 ) &
 
+# Fotos HD de las pizarras de tarea. Va AQUÍ y no en un servicio nuevo porque este worker no
+# arranca Ollama (sólo lo hace el web), así que Chromium tiene sitio de sobra.
+#
+# Lo que se arregló no fue "dónde corre Chromium", fue que el encargo vivía en la memoria del
+# proceso web: un reinicio se llevaba la foto sin dejar ni error ni constancia (la tarea 1160,
+# 2026-08-08). Ahora el encargo es una fila, y por eso este bucle puede morirse tranquilamente:
+# el alquiler caduca y la tarea vuelve a la cola sola.
+#
+# `|| true` como los de arriba: que una pasada falle no puede tumbar al operador.
+if [ -n "${BOARD_SHOT_BASE_URL:-}" ]; then
+  (
+    sleep 150
+    while true; do
+      python manage.py fotos_pizarra || echo "[fotos-pizarra] la pasada falló; se reintentará" >&2
+      sleep "${BOARD_SHOT_INTERVAL_SECONDS:-60}"
+    done
+  ) &
+  echo "[fotos-pizarra] cola activada contra ${BOARD_SHOT_BASE_URL} (cada ${BOARD_SHOT_INTERVAL_SECONDS:-60}s)" >&2
+else
+  echo "[fotos-pizarra] DESACTIVADA: falta BOARD_SHOT_BASE_URL. Las fichas se quedarán con el dibujo viejo." >&2
+fi
+
 exec python manage.py run_ollana_operator \
   --workspace-id "${OLLANA_OPERATOR_WORKSPACE_ID}" \
   --actor-id "${OLLANA_OPERATOR_ACTOR_ID}" \
