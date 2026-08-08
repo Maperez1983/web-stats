@@ -291,11 +291,121 @@ def responder_jugador(frase, equipo):
     }
 
 
+# --- Partidos --------------------------------------------------------------------------------
+
+def _es_nuestro(equipo, otro):
+    try:
+        return otro is not None and int(getattr(otro, "id", 0)) == int(getattr(equipo, "id", 0))
+    except Exception:
+        return False
+
+
+def _rival_de(partido, equipo):
+    otro = partido.away_team if _es_nuestro(equipo, partido.home_team) else partido.home_team
+    return str(getattr(otro, "display_name", "") or getattr(otro, "name", "") or "rival")
+
+
+def _casa_o_fuera(partido, equipo):
+    return "en casa" if _es_nuestro(equipo, partido.home_team) else "fuera"
+
+
+def _partidos_del_equipo(equipo):
+    from django.db.models import Q
+
+    from football.models import Match
+
+    return Match.objects.select_related("home_team", "away_team").filter(
+        Q(home_team=equipo) | Q(away_team=equipo)
+    )
+
+
+def es_pregunta_proximo_partido(frase):
+    q = _sin_tildes(frase)
+    return (any(p in q for p in ("contra quien", "con quien", "proximo partido", "siguiente partido",
+                                 "cuando jugamos", "cuando es el partido", "que partido"))
+            or ("jugamos" in q and any(d in q for d, _ in DIAS)))
+
+
+def responder_proximo_partido(frase, equipo):
+    from django.utils import timezone
+
+    hoy = timezone.localdate()
+    prox = (
+        _partidos_del_equipo(equipo)
+        .filter(date__gte=hoy)
+        .order_by("date", "kickoff_time", "id")
+        .first()
+    )
+    if prox is None:
+        return {"message": "No tienes ningún partido por delante en el calendario.",
+                "highlights": []}
+    hora = prox.kickoff_time.strftime("%H:%M") if getattr(prox, "kickoff_time", None) else ""
+    donde = str(getattr(prox, "location", "") or "").strip()
+    partes = [f"{_rival_de(prox, equipo)} ({_casa_o_fuera(prox, equipo)})",
+              dia_corto(prox.date) if prox.date else ""]
+    if hora:
+        partes.append(hora)
+    if donde:
+        partes.append(donde[:40])
+    torneo = str(getattr(prox, "tournament_name", "") or "").strip()
+    cabecera = "Próximo partido: " + " · ".join([x for x in partes if x])
+    if torneo:
+        cabecera += f"\n{torneo[:50]}"
+    return {"message": cabecera + f"\n\nVer: /coach/partidos/",
+            "highlights": [_rival_de(prox, equipo)[:30]]}
+
+
+def es_pregunta_ultimo_partido(frase):
+    q = _sin_tildes(frase)
+    return (any(p in q for p in ("como quedo", "como quedamos", "que tal el partido",
+                                 "resultado", "ultimo partido", "como fue el partido",
+                                 "ganamos", "perdimos", "empatamos"))
+            and "proximo" not in q)
+
+
+def responder_ultimo_partido(frase, equipo):
+    from django.utils import timezone
+
+    hoy = timezone.localdate()
+    ult = (
+        _partidos_del_equipo(equipo)
+        .filter(date__lte=hoy)
+        .order_by("-date", "-id")
+        .first()
+    )
+    if ult is None:
+        return {"message": "No encuentro ningún partido jugado.", "highlights": []}
+    nuestros = ult.home_score if _es_nuestro(equipo, ult.home_team) else ult.away_score
+    suyos = ult.away_score if _es_nuestro(equipo, ult.home_team) else ult.home_score
+    if nuestros is None or suyos is None:
+        return {"message": f"El partido contra {_rival_de(ult, equipo)} "
+                           f"({dia_corto(ult.date)}) todavía no tiene resultado."
+                           f"\n\nCerrarlo: /coach/partidos/",
+                "highlights": ["Sin resultado"]}
+    # Se dice el signo, que es lo primero que se mira.
+    if nuestros > suyos:
+        signo = "Ganamos"
+    elif nuestros < suyos:
+        signo = "Perdimos"
+    else:
+        signo = "Empatamos"
+    return {
+        "message": (f"{signo} {int(nuestros)}-{int(suyos)} contra {_rival_de(ult, equipo)} "
+                    f"({_casa_o_fuera(ult, equipo)}, {dia_corto(ult.date)})."
+                    f"\n\nVer: /coach/partidos/"),
+        "highlights": [signo, f"{int(nuestros)}-{int(suyos)}"],
+    }
+
+
 CONSULTAS = (
     (es_pregunta_asistencia, responder_asistencia),
     (es_pregunta_tareas_de_sesion, responder_tareas_de_sesion),
     (es_pregunta_cuantas_sesiones, responder_cuantas_sesiones),
     (es_pregunta_jugador, responder_jugador),
+    # El ULTIMO antes que el PROXIMO: "como quedo el ultimo partido" lleva la palabra
+    # "partido" y la de proximo la miraria tambien.
+    (es_pregunta_ultimo_partido, responder_ultimo_partido),
+    (es_pregunta_proximo_partido, responder_proximo_partido),
 )
 
 
