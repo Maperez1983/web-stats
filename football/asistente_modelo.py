@@ -53,8 +53,9 @@ _INSTRUCCION = (
     '  "intencion": una de ir | buscar | sugerir | orden | consulta | otro\n'
     '  "objetivo": de qué habla, en una o dos palabras y en minúsculas\n\n'
     "Qué significa cada una:\n"
-    "  ir       = quiere abrir una pantalla (entrenamientos, plantilla, partidos, análisis, "
-    "biblioteca, seguimiento)\n"
+    "  ir       = quiere abrir una pantalla. Si es 'ir', el objetivo tiene que ser EXACTAMENTE "
+    "una de estas: entrenamientos, plantilla, partidos, analisis, biblioteca, seguimiento, "
+    "entrenador. Nada mas.\n"
     "  buscar   = quiere encontrar algo concreto por su nombre\n"
     "  sugerir  = quiere que le propongas tareas o ejercicios de un tema\n"
     "  orden    = manda hacer un cambio (marcar, anotar, apuntar, convocar, borrar)\n"
@@ -62,6 +63,8 @@ _INSTRUCCION = (
     "  otro     = cualquier otra cosa\n\n"
     "Ejemplos:\n"
     '  "ponme donde los entrenos" -> {"intencion":"ir","objetivo":"entrenamientos"}\n'
+    '  "quiero ver la gente que tengo" -> {"intencion":"ir","objetivo":"plantilla"}\n'
+    '  "abreme lo de los videos" -> {"intencion":"ir","objetivo":"analisis"}\n'
     '  "necesito ejercicios para la salida de balon" -> {"intencion":"sugerir","objetivo":"salida de balon"}\n'
     '  "apunta que JUGADOR no vino" -> {"intencion":"orden","objetivo":"asistencia"}\n'
     '  "a ver la enfermeria" -> {"intencion":"consulta","objetivo":"lesionados"}\n'
