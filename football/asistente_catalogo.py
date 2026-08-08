@@ -456,6 +456,138 @@ def _duracion_ejecuta(datos, ctx):
                   f"\n\nVer: /coach/sesiones/tarea/{int(t.id)}/")
 
 
+# ---- crear una sesion --------------------------------------------------------------------------
+
+DIAS_SEMANA = (("lunes", 0), ("martes", 1), ("miercoles", 2), ("jueves", 3),
+               ("viernes", 4), ("sabado", 5), ("domingo", 6))
+
+
+def _fecha_pedida(frase):
+    """La fecha que dice la frase: «el jueves», «el 14/08», «mañana». None si no dice ninguna."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    hoy = timezone.localdate()
+    q = sin_tildes(frase)
+
+    m = re.search(r"\b(\d{1,2})[/\-](\d{1,2})(?:[/\-](\d{2,4}))?\b", q)
+    if m:
+        from datetime import date
+
+        dia, mes = int(m.group(1)), int(m.group(2))
+        anio = int(m.group(3) or 0)
+        if anio and anio < 100:
+            anio += 2000
+        try:
+            f = date(anio or hoy.year, mes, dia)
+            # Sin año, si ya paso se entiende el del año que viene: nadie crea una sesion para
+            # una fecha que quedo atras.
+            if not anio and f < hoy:
+                f = date(hoy.year + 1, mes, dia)
+            return f
+        except Exception:
+            return None
+
+    if re.search(r"\bmanana\b", q):
+        return hoy + timedelta(days=1)
+    if re.search(r"\bhoy\b", q):
+        return hoy
+    if re.search(r"\bpasado manana\b", q):
+        return hoy + timedelta(days=2)
+
+    for nombre, indice in DIAS_SEMANA:
+        if re.search(r"\b" + nombre + r"\b", q):
+            # El PROXIMO que caiga en ese dia. Si hoy es jueves y dices "el jueves", es el de
+            # dentro de siete dias: crear una sesion para hoy a toro pasado no tiene sentido.
+            adelante = (indice - hoy.weekday()) % 7
+            return hoy + timedelta(days=adelante or 7)
+    return None
+
+
+def _hora_pedida(frase):
+    m = re.search(r"\b([01]?\d|2[0-3])[:.]([0-5]\d)\b", str(frase or ""))
+    if not m:
+        return None
+    from datetime import time
+
+    try:
+        return time(int(m.group(1)), int(m.group(2)))
+    except Exception:
+        return None
+
+
+def _crear_sesion_reconoce(frase):
+    return (dice(frase, "crea", "crear", "programa", "programar", "monta", "montar", "añade", "anade")
+            and contiene(frase, "sesion", "entreno", "entrenamiento"))
+
+
+def _crear_sesion_prepara(frase, ctx):
+    fecha = _fecha_pedida(frase)
+    if fecha is None:
+        return ("¿Para qué día? Dímelo así: «crea una sesión el jueves a las 18:30» "
+                "o «crea un entreno el 14/08».", None)
+    hora = _hora_pedida(frase)
+    # Duracion: un numero seguido de "min", para no confundirlo con la hora.
+    m = re.search(r"\b(\d{2,3})\s*(?:min|minutos)\b", sin_tildes(frase))
+    minutos = max(30, min(int(m.group(1)), 180)) if m else 90
+
+    from football.models import TrainingSession
+
+    ya = TrainingSession.objects.filter(
+        microcycle__team=ctx["equipo"], session_date=fecha
+    ).exclude(microcycle__title__istartswith="Biblioteca ").count()
+
+    aviso = ""
+    if ya:
+        # UNA sesion por dia es la norma de este club. No se bloquea, pero se avisa: crear la
+        # segunda sin querer ensucia el calendario y cuesta verlo.
+        aviso = f"\n\nOJO: ese día ya tienes {ya} sesión{'es' if ya != 1 else ''}."
+    cuando = fecha.strftime("%d/%m/%Y")
+    detalle = f"{cuando}" + (f" a las {hora.strftime('%H:%M')}" if hora else "") + f", {minutos} min"
+    return (f"Voy a crear una sesión el {detalle}.{aviso} ¿Confirmo?",
+            {"fecha": fecha.isoformat(), "hora": hora.strftime("%H:%M") if hora else "",
+             "minutos": minutos, "equipo_id": int(ctx["equipo"].id)})
+
+
+def _crear_sesion_ejecuta(datos, ctx):
+    from datetime import datetime
+
+    from django.db.models import Max
+
+    from football.models import Team, TrainingSession
+    from football.views import _resolve_week_microcycle_for_session
+
+    equipo = Team.objects.filter(id=int(datos["equipo_id"])).first()
+    if equipo is None:
+        return False, "Ya no encuentro ese equipo."
+    fecha = datetime.strptime(str(datos["fecha"]), "%Y-%m-%d").date()
+    hora = None
+    if datos.get("hora"):
+        try:
+            hora = datetime.strptime(str(datos["hora"]), "%H:%M").time()
+        except Exception:
+            hora = None
+    # El microciclo lo resuelve la MISMA funcion que usa la pantalla: si aqui se creara uno
+    # por libre, la sesion acabaria en una semana que no es la suya.
+    micro = _resolve_week_microcycle_for_session(equipo, fecha)
+    if micro is None:
+        return False, "No he podido preparar el microciclo de esa semana."
+    orden = (TrainingSession.objects.filter(microcycle=micro).aggregate(Max("order")).get("order__max") or 0) + 1
+    ses = TrainingSession.objects.create(
+        microcycle=micro,
+        session_date=fecha,
+        start_time=hora,
+        duration_minutes=int(datos.get("minutos") or 90),
+        focus="Entrenamiento",
+        content="",
+        order=orden,
+    )
+    return True, (f"Sesión creada el {fecha.strftime('%d/%m/%Y')}"
+                  + (f" a las {hora.strftime('%H:%M')}" if hora else "")
+                  + f".\n\nAbrir: /coach/sesiones/sesion/{int(ses.id)}/")
+
+
 CATALOGO = (
     {"clave": "mover_bloque", "reconoce": _mover_bloque_reconoce,
      "prepara": _mover_bloque_prepara, "ejecuta": _mover_bloque_ejecuta},
@@ -472,6 +604,8 @@ CATALOGO = (
      "prepara": _duplicar_prepara, "ejecuta": _duplicar_ejecuta},
     {"clave": "duracion_tarea", "reconoce": _duracion_reconoce,
      "prepara": _duracion_prepara, "ejecuta": _duracion_ejecuta},
+    {"clave": "crear_sesion", "reconoce": _crear_sesion_reconoce,
+     "prepara": _crear_sesion_prepara, "ejecuta": _crear_sesion_ejecuta},
 )
 
 

@@ -187,6 +187,25 @@ class AsistenteAccionesTests(TestCase):
         self.assertIn("Dime la fecha", respuesta)
         self.assertIn(self.session.session_date.strftime("%d/%m"), respuesta)
 
+    def test_crear_una_sesion_pide_el_dia(self):
+        respuesta = self._decir("crea una sesión")
+        self.assertIn("qué día", respuesta.lower())
+
+    def test_crear_una_sesion_con_fecha_y_hora(self):
+        from football.models import TrainingSession
+
+        antes = TrainingSession.objects.count()
+        respuesta = self._decir("crea una sesión el 14/12 a las 18:30")
+        self.assertIn("14/12", respuesta)
+        self.assertIn("18:30", respuesta)
+        self.assertEqual(TrainingSession.objects.count(), antes)  # aún no
+
+        self._decir("sí")
+        self.assertEqual(TrainingSession.objects.count(), antes + 1)
+        nueva = TrainingSession.objects.order_by("-id").first()
+        self.assertEqual(nueva.session_date.strftime("%d/%m"), "14/12")
+        self.assertEqual(nueva.start_time.strftime("%H:%M"), "18:30")
+
     def test_un_si_suelto_no_ejecuta_nada(self):
         respuesta = self._decir("sí")
         self.assertIn("nada pendiente", respuesta.lower())
