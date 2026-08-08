@@ -25,9 +25,18 @@ class ElegirEquipacionTests(SimpleTestCase):
         """commercial.css pinta `button{background:...!important}` y dejaba los OCHO
         selectores en blanco: era imposible ver cuál estabas eligiendo."""
         self.assertIn("--sw", self.barra)
-        self.assertRegex(
-            self.barra,
-            r"\.edc-swatch\[style\*=\"--sw\"\]\s*\{[^}]*background:\s*var\(--sw\)\s*!important",
+        self.assertRegex(self.barra, r"background:\s*var\(--sw\)\s*!important")
+
+    def test_y_tambien_ganan_en_MODO_CLARO(self):
+        """Con las dos reglas en !important manda la más específica, y en claro
+        commercial.css sube a `:root[data-theme="light"] body.prod-commercial :where(button…)`.
+        Un `.edc-swatch[...]` a secas arreglaba el oscuro y dejaba el claro igual de blanco:
+        es el tema que él usa, así que el arreglo no se veía."""
+        self.assertIn(
+            ':root[data-theme="light"] body.prod-commercial .edc-swatch[data-kit]', self.barra
+        )
+        self.assertIn(
+            ':root[data-theme="light"] body.prod-commercial .edc-swatch[data-gk]', self.barra
         )
 
     def test_la_equipacion_de_entreno_esta_en_la_barra(self):

@@ -69,8 +69,18 @@
   <style>
   /* El color de cada equipacion iba inline y commercial.css lo pisaba con !important
      (`body.prod-commercial button{background:var(--ui-button-bg)!important}`): los ocho
-     selectores salian BLANCOS y era imposible ver cual estabas eligiendo. */
-  .edc-swatch[style*="--sw"]{ background: var(--sw) !important; }
+     selectores salian BLANCOS y era imposible ver cual estabas eligiendo.
+     OJO CON LA ESPECIFICIDAD: cuando las dos reglas llevan !important gana la mas
+     especifica, y en MODO CLARO commercial.css tiene
+     `:root[data-theme="light"] body.prod-commercial :where(button,...):not(.primary)`,
+     que es (0,3,1). Por eso un `.edc-swatch[...]` (0,2,0) arreglaba el modo oscuro y
+     dejaba el claro igual de blanco. Estas dos suben a (0,4,1) y (0,5,1). */
+  :root body.prod-commercial .edc-swatch[data-kit],
+  :root body.prod-commercial .edc-swatch[data-gk],
+  :root[data-theme="light"] body.prod-commercial .edc-swatch[data-kit],
+  :root[data-theme="light"] body.prod-commercial .edc-swatch[data-gk]{
+    background: var(--sw) !important;
+  }
 </style>
 <div class="edc-selbar" id="edc-selbar" role="group" aria-label="Presentación y color global de las fichas">
     <div class="edc-selgrp" data-edc-sel="rep">
