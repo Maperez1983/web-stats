@@ -1381,6 +1381,41 @@
       const highlights = Array.isArray(response.highlights) ? response.highlights : [];
       if (pendingNode && pendingNode.parentNode) pendingNode.remove();
       renderMessage('assistant', text, highlights, response);
+      // FICHAS EN LA PIZARRA. El servidor no toca el lienzo -vive aqui, en el navegador,
+      // mientras editas-: manda las fichas y las coloca el editor con su propia funcion, la
+      // misma que usa el banco de jugadores. Si no estamos en el editor no hay nada que hacer.
+      try {
+        const orden = response && response.accion;
+        if (orden && orden.tipo === 'colocar_fichas' && Array.isArray(orden.fichas)) {
+          const colocar = window.__webstatsTpadPlaceToken;
+          if (typeof colocar !== 'function') {
+            renderMessage('assistant', 'No veo el editor abierto, así que no hay dónde ponerlas.', ['Sin lienzo']);
+          } else {
+            let puestas = 0;
+            orden.fichas.forEach((ficha, i) => {
+              // En rejilla, y separadas: amontonarlas en el centro obliga a arrastrarlas una a
+              // una, que es justo el trabajo que se quiere ahorrar.
+              const col = i % 5;
+              const fila = Math.floor(i / 5);
+              const hecho = colocar({
+                kind: 'player_local',
+                kit: String(ficha.kit || 'titular'),
+                name: String(ficha.name || ''),
+                number: String(ficha.number || ''),
+                left: 240 + col * 150,
+                top: 220 + fila * 170,
+              });
+              if (hecho) puestas += 1;
+            });
+            renderMessage(
+              'assistant',
+              puestas ? `Puestas ${puestas} fichas. Muévelas donde quieras y guarda la tarea.`
+                      : 'No he podido colocarlas. Prueba a recargar el editor.',
+              [puestas ? 'Hecho' : 'No se pudo'],
+            );
+          }
+        }
+      } catch (error) { /* que un fallo aqui no rompa el chat */ }
       history.push({ role: 'assistant', content: text });
       if (intent.kind === 'task' && permissions.can_operate_guard_code === false) {
         const notice = 'He tratado tu petición en modo supervisado. Solo el usuario operador autorizado puede lanzar cambios de código o auto-fix.';

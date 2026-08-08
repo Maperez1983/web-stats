@@ -289,3 +289,66 @@ def respuesta_orden(texto, *, tema="", jugador=None, sesion=None):
         "highlights": [quien or "Jugador", "Solo lectura"],
         "ir_a": destino,
     }
+
+
+# --- PIZARRA ---------------------------------------------------------------------------------
+# "mete 5 con equipacion local y 5 con visitante".
+#
+# Esto NO se puede hacer en el servidor, y el motivo es de fondo: el lienzo de la tarea vive en
+# el NAVEGADOR mientras lo editas. Tocar `tactical_layout` por detras mientras tienes el editor
+# abierto es la receta para que tu siguiente guardado se lleve por delante lo que puso el
+# asistente, o al reves. Asi que el servidor propone y el editor -que ya sabe hacerlo, con
+# `__webstatsTpadPlaceToken`- lo ejecuta.
+
+# Como llama el a cada equipacion, y como se llama dentro.
+EQUIPACIONES = (
+    ("titular", ("local", "titular", "primera", "1a", "verdiblanca", "de casa")),
+    ("visitante", ("visitante", "segunda", "2a", "fuera", "amarilla")),
+    ("turquesa", ("turquesa", "tercera", "3a")),
+    ("blanca", ("blanca", "blanco")),
+    ("chandal", ("chandal", "chándal", "entreno", "entrenamiento")),
+)
+
+_PALABRAS_PIZARRA = ("mete", "meter", "coloca", "colocar", "pon", "poner", "saca", "sacar",
+                     "añade", "anade", "agrega", "dibuja")
+
+
+def parece_pizarra(texto: str) -> bool:
+    """¿Está pidiendo poner fichas en el lienzo de una tarea?"""
+    q = _sin_tildes(texto)
+    if not any(re.search(r"(?:^|\s)" + re.escape(v) + r"(?:\s|$)", q) for v in _PALABRAS_PIZARRA):
+        return False
+    return bool(re.search(r"\b\d+\b", q)) and any(
+        p in q for p in ("jugador", "jugadores", "ficha", "fichas", "equipacion", "plantilla",
+                         "miembro", "miembros", "chapa", "chapas")
+    )
+
+
+def leer_grupos(texto: str):
+    """De la frase saca [(cuantos, equipacion), ...] respetando el orden en que lo dice.
+
+    "5 de la plantilla con equipación local y otros 5 visitante" -> [(5,'titular'), (5,'visitante')]
+    """
+    q = _sin_tildes(texto)
+    # Cada numero, y la equipacion que aparezca DESPUES de el y antes del siguiente numero.
+    numeros = [(m.start(), int(m.group())) for m in re.finditer(r"\b\d{1,2}\b", q)]
+    if not numeros:
+        return []
+    grupos = []
+    for i, (pos, cuantos) in enumerate(numeros):
+        fin = numeros[i + 1][0] if i + 1 < len(numeros) else len(q)
+        trozo = q[pos:fin]
+        equipacion = ""
+        mejor = 0
+        for clave, palabras in EQUIPACIONES:
+            for p in palabras:
+                if p in trozo and len(p) > mejor:
+                    equipacion, mejor = clave, len(p)
+        if 1 <= cuantos <= 11:
+            grupos.append((cuantos, equipacion or "titular"))
+    return grupos
+
+
+def etiqueta_equipacion(clave: str) -> str:
+    return {"titular": "local", "visitante": "visitante", "turquesa": "turquesa",
+            "blanca": "blanca", "chandal": "de entreno"}.get(clave, clave)
