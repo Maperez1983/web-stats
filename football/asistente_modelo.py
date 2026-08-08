@@ -34,6 +34,11 @@ import urllib.request
 
 logger = logging.getLogger(__name__)
 
+# Ultimo intento y ultimo error, para poder mirarlos desde fuera. Cuando se pone la clave y "no
+# pasa nada" hay que poder distinguir si es que no se llama, si Groq dice que no, o si el modelo
+# no existe. Sin esto se adivina.
+ULTIMO = {"intentos": 0, "ok": 0, "error": "", "leido": ""}
+
 URL = "https://api.groq.com/openai/v1/chat/completions"
 MODELO_POR_DEFECTO = "llama-3.3-70b-versatile"
 # Corto a propósito: esto va DENTRO de tu petición. Si el modelo tarda más, no vale la pena
@@ -82,6 +87,7 @@ def clasificar(frase: str, *, nombres=None):
     """Devuelve {"intencion", "objetivo"} o None si no se puede o no procede."""
     if not activo():
         return None
+    ULTIMO["intentos"] += 1
     frase = str(frase or "").strip()
     if len(frase) < 3 or len(frase) > 300:
         return None
@@ -111,16 +117,24 @@ def clasificar(frase: str, *, nombres=None):
             datos = json.loads(resp.read().decode("utf-8") or "{}")
     except urllib.error.HTTPError as exc:
         # 429 = te has pasado del nivel gratuito. No es un error del programa: se sigue sin él.
+        detalle = ""
+        try:
+            detalle = exc.read().decode("utf-8", "ignore")[:200]
+        except Exception:
+            detalle = ""
+        ULTIMO["error"] = f"http_{getattr(exc, 'code', '?')}: {detalle}"
         logger.debug("groq respondio %s", getattr(exc, "code", "?"))
         return None
-    except Exception:
+    except Exception as exc:
+        ULTIMO["error"] = f"{exc.__class__.__name__}: {str(exc)[:160]}"
         logger.debug("groq no respondio a tiempo", exc_info=True)
         return None
 
     try:
         crudo = datos["choices"][0]["message"]["content"]
         salida = json.loads(crudo)
-    except Exception:
+    except Exception as exc:
+        ULTIMO["error"] = f"respuesta ilegible: {exc.__class__.__name__}"
         return None
 
     intencion = str(salida.get("intencion") or "").strip().lower()
@@ -128,6 +142,9 @@ def clasificar(frase: str, *, nombres=None):
         # "consulta" y "otro" se dejan al camino de siempre: el enrutador de datos ya sabe, y
         # no se gana nada metiendo al modelo por medio.
         return None
+    ULTIMO["ok"] += 1
+    ULTIMO["error"] = ""
+    ULTIMO["leido"] = f"{intencion}:{str(salida.get('objetivo') or '')[:30]}"
     return {
         "intencion": intencion,
         "objetivo": str(salida.get("objetivo") or "").strip().lower()[:60],
