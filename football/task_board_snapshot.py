@@ -24,11 +24,13 @@ import io
 import json
 import logging
 import threading
+from datetime import timedelta
 
 from django.conf import settings
-from django.core.cache import cache
 from django.core.files.base import ContentFile
+from django.db import models
 from django.urls import reverse
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -47,18 +49,10 @@ SNAPSHOT_READY_JS = "() => window.__WEBSTATS_SNAPSHOT_READY === true"
 
 META_SIG_KEY = "board_hd_sig"
 
-# Si un intento falla (sin Chromium, timeout, campo vacío), no reintentamos en cada visita.
-FAIL_COOLDOWN_SECONDS = 30 * 60
-
-# Tareas con foto en curso (evita lanzar N hilos para la misma tarea).
-_inflight: set[int] = set()
-_inflight_lock = threading.Lock()
-
-# Un Chromium a la vez por proceso: abrir el editor completo consume bastante memoria y varias
-# fichas abiertas a la vez podrían tumbar la instancia. Los demás esperan turno.
+# Un Chromium a la vez por proceso. Queda para el diagnóstico `?shot=1`, que sí renderiza dentro
+# del web; las fotos de verdad las hace `manage.py fotos_pizarra` en su propio proceso, de una en
+# una, y por eso ya no compiten con la app que tiene que servirles la página del editor.
 _render_gate = threading.Semaphore(1)
-# Con fotos que ahora pueden durar 3 minutos, 180 s de espera dejaban a la siguiente fuera por
-# el turno, no por la foto: se descartaba sola y quedaba marcada como fallida.
 RENDER_GATE_TIMEOUT_SECONDS = 900
 
 # Tiempo de espera del navegador, en función de lo cargado que esté el dibujo (ver `_timeouts_for`).
@@ -162,65 +156,209 @@ def editor_snapshot_url(request, task) -> str:
     return request.build_absolute_uri(f"{path}?{query}")
 
 
-def queue_snapshot(request, task, *, force: bool = False) -> bool:
-    """Encola la foto HD si hace falta. No bloquea: devuelve enseguida."""
+def editor_snapshot_url_for(task, base_url: str) -> str:
+    """La misma URL, pero sin `request`: la usa el proceso que vacía la cola."""
+    path = reverse("sessions-task-edit", args=[int(task.id)])
+    query = "embedded=1&snapshot=1"
+    team_id = getattr(getattr(getattr(task, "session", None), "team", None), "id", None)
+    if team_id:
+        query += f"&team={int(team_id)}"
+    return f"{str(base_url).rstrip('/')}{path}?{query}"
+
+
+# ---------------------------------------------------------------------------
+# La COLA. Pedir una foto es escribir una fila, no lanzar un hilo.
+#
+# El proceso web no fotografía nada: sólo deja el encargo apuntado. Quien lo cumple es otro
+# proceso (`manage.py fotos_pizarra`), que puede morirse a mitad sin perder el encargo. Ver el
+# porqué en el docstring de `TaskBoardShot`.
+# ---------------------------------------------------------------------------
+def request_snapshot(task, user=None, *, force: bool = False):
+    """Apunta que esta tarea necesita foto. Devuelve la fila, o None si no hace falta.
+
+    Es idempotente: llamarla en cada visita a la ficha no acumula trabajo, sólo mantiene la fila
+    al día. Si el dibujo ha cambiado desde el último encargo, los intentos vuelven a cero: una
+    pizarra nueva merece sus reintentos aunque la anterior se rindiera.
+    """
+    from django.db import transaction
+
+    from .models import TaskBoardShot
+
     if not getattr(settings, "TASK_BOARD_SNAPSHOT_ENABLED", True):
-        return False
+        return None
     try:
         task_id = int(getattr(task, "id", 0) or 0)
     except Exception:
-        return False
+        return None
     if not task_id:
-        return False
+        return None
     if not force and snapshot_is_current(task):
-        return False
+        return None
     sig = board_signature(task)
     if not sig:
-        return False
-    # Si el último intento falló, no volvemos a levantar Chromium en cada visita a la ficha.
-    if not force and cache.get(_fail_key(task_id)):
-        return False
+        return None
 
-    url = editor_snapshot_url(request, task)
-    cookies = session_cookies_for(request)
-    if not cookies:
-        return False
+    ahora = timezone.now()
+    usuario = user if getattr(user, "is_authenticated", False) else None
+    with transaction.atomic():
+        shot, creada = TaskBoardShot.objects.select_for_update().get_or_create(
+            task_id=task_id,
+            defaults={
+                "signature": sig,
+                "state": TaskBoardShot.PENDIENTE,
+                "requested_by": usuario,
+                "next_try_at": ahora,
+            },
+        )
+        if creada:
+            return shot
 
-    with _inflight_lock:
-        if task_id in _inflight:
-            return False
-        _inflight.add(task_id)
+        dibujo_nuevo = shot.signature != sig
+        if dibujo_nuevo or force:
+            shot.signature = sig
+            shot.state = TaskBoardShot.PENDIENTE
+            shot.attempts = 0
+            shot.last_error = ""
+            shot.next_try_at = ahora
+            shot.leased_until = None
+            shot.requested_at = ahora
+        elif shot.state == TaskBoardShot.HECHA:
+            # La firma es la misma pero la foto guardada ya no vale (p.ej. el editor la
+            # sobrescribió con su captura de 720 px al guardar). Vuelve a la cola.
+            shot.state = TaskBoardShot.PENDIENTE
+            shot.next_try_at = ahora
+        if usuario is not None:
+            # Siempre la última persona que la pidió: si a quien la encargó le quitan el acceso,
+            # el encargo no se queda muerto esperando una sesión que ya no se puede crear.
+            shot.requested_by = usuario
+        shot.save()
+    return shot
 
-    thread = threading.Thread(
-        target=_render_and_store,
-        args=(task_id, url, cookies, sig, board_object_count(task)),
-        name=f"board-snapshot-{task_id}",
-        daemon=True,
-    )
-    thread.start()
-    return True
 
+def shot_for(task):
+    from .models import TaskBoardShot
 
-def _fail_key(task_id: int) -> str:
-    return f"task_board_hd:fail:{int(task_id)}"
-
-
-def _last_error_key(task_id: int) -> str:
-    return f"task_board_hd:last_error:{int(task_id)}"
-
-
-def _note(task_id: int, message: str) -> None:
     try:
-        cache.set(_last_error_key(task_id), str(message)[:400], 6 * 3600)
+        return TaskBoardShot.objects.filter(task_id=int(task.id)).first()
     except Exception:
-        pass
+        return None
 
 
-def _mark_failed(task_id: int) -> None:
-    try:
-        cache.set(_fail_key(task_id), True, FAIL_COOLDOWN_SECONDS)
-    except Exception:
-        pass
+def shot_state_for(task) -> dict:
+    """Lo que la ficha necesita contar: ¿viene la foto, o se rindió y por qué?"""
+    from .models import TaskBoardShot
+
+    if snapshot_is_current(task):
+        return {"pendiente": False, "rendida": False, "motivo": "", "intentos": 0}
+    shot = shot_for(task)
+    if shot is None:
+        return {"pendiente": False, "rendida": False, "motivo": "", "intentos": 0}
+    rendida = shot.state == TaskBoardShot.RENDIDA
+    return {
+        "pendiente": not rendida,
+        "rendida": rendida,
+        "motivo": shot.last_error or "",
+        "intentos": int(shot.attempts or 0),
+    }
+
+
+def _espera_tras_fallo(intentos: int) -> int:
+    """Segundos hasta el siguiente intento: 1, 4, 9, 16, 25 minutos.
+
+    Antes era un plano de 30 minutos guardado en `cache`, y hacía dos cosas mal: castigaba media
+    hora un fallo que casi siempre era pasajero (el worker reiniciándose), y como la caché es por
+    proceso, sólo frenaba a uno de los dos workers.
+    """
+    n = max(1, int(intentos or 1))
+    return min(n * n, 25) * 60
+
+
+def claim_pending(limit: int = 1, lease_seconds: int = 15 * 60) -> list:
+    """Coge encargos de la cola y los alquila para que nadie más los toque.
+
+    El alquiler CADUCA a propósito: si el proceso que fotografía se muere a mitad —que es
+    exactamente lo que pasaba antes—, el encargo vuelve a la cola solo en cuanto pasa el plazo.
+    """
+    from django.db import transaction
+
+    from .models import TaskBoardShot
+
+    ahora = timezone.now()
+    cogidos = []
+    with transaction.atomic():
+        libres = (
+            TaskBoardShot.objects
+            .select_for_update(skip_locked=True)
+            .filter(state=TaskBoardShot.PENDIENTE)
+            .filter(models.Q(next_try_at__isnull=True) | models.Q(next_try_at__lte=ahora))
+            .filter(models.Q(leased_until__isnull=True) | models.Q(leased_until__lte=ahora))
+            .order_by("next_try_at", "requested_at")[: max(1, int(limit))]
+        )
+        for shot in libres:
+            shot.leased_until = ahora + timedelta(seconds=int(lease_seconds))
+            shot.save(update_fields=["leased_until", "updated_at"])
+            cogidos.append(shot)
+    return cogidos
+
+
+def mark_done(shot) -> None:
+    from .models import TaskBoardShot
+
+    shot.state = TaskBoardShot.HECHA
+    shot.last_error = ""
+    shot.leased_until = None
+    shot.next_try_at = None
+    shot.save(update_fields=["state", "last_error", "leased_until", "next_try_at", "updated_at"])
+
+
+def mark_failed(shot, motivo: str) -> None:
+    """Apunta el fallo EN LA BASE, que es donde se ve desde cualquier worker."""
+    from .models import TaskBoardShot
+
+    shot.attempts = int(shot.attempts or 0) + 1
+    shot.last_error = str(motivo or "")[:400]
+    shot.leased_until = None
+    if shot.attempts >= TaskBoardShot.MAX_INTENTOS:
+        # Rendirse no es callarse: el estado y el motivo quedan a la vista en la ficha.
+        shot.state = TaskBoardShot.RENDIDA
+        shot.next_try_at = None
+    else:
+        shot.next_try_at = timezone.now() + timedelta(seconds=_espera_tras_fallo(shot.attempts))
+    shot.save(update_fields=["attempts", "last_error", "leased_until", "state", "next_try_at", "updated_at"])
+
+
+def cookies_for_user(user, base_url: str) -> list:
+    """Sesión recién hecha para ese usuario, sin pasar por un request.
+
+    La foto abre el EDITOR REAL, que exige estar autenticado. El proceso que vacía la cola no
+    tiene request del que copiar la cookie, así que se crea una sesión de la persona que pidió la
+    foto: los permisos siguen siendo los suyos y no hace falta inventar una cuenta de servicio.
+    """
+    import importlib
+
+    from django.contrib.auth import BACKEND_SESSION_KEY, HASH_SESSION_KEY, SESSION_KEY
+
+    if user is None or not getattr(user, "pk", None):
+        return []
+    motor = importlib.import_module(settings.SESSION_ENGINE)
+    sesion = motor.SessionStore()
+    sesion[SESSION_KEY] = str(user.pk)
+    sesion[BACKEND_SESSION_KEY] = "django.contrib.auth.backends.ModelBackend"
+    sesion[HASH_SESSION_KEY] = user.get_session_auth_hash()
+    sesion.create()
+    clave = sesion.session_key
+    if not clave:
+        # `signed_cookies` no guarda nada en servidor y no da clave. En producción usamos el
+        # motor de base de datos, pero si alguien lo cambia hay que enterarse, no fallar mudo.
+        raise RuntimeError(
+            f"SESSION_ENGINE={settings.SESSION_ENGINE} no genera clave de sesión: "
+            "la foto no puede autenticarse"
+        )
+    return [{
+        "name": getattr(settings, "SESSION_COOKIE_NAME", "sessionid"),
+        "value": str(clave),
+        "url": str(base_url),
+    }]
 
 
 def board_object_count(task) -> int:
@@ -249,46 +387,76 @@ def _timeouts_for(object_count: int) -> tuple[int, int]:
     return timeout_ms, settle_ms
 
 
-def _render_and_store(task_id: int, url: str, cookies: list, sig: str, object_count: int = 0) -> None:
-    from django.db import connection
+def cumplir_encargo(shot, base_url: str) -> tuple[bool, str]:
+    """Hace la foto de un encargo ya alquilado. Devuelve (salió bien, explicación).
 
+    No lanza: cualquier fallo vuelve como explicación para que quede escrito en la fila. El
+    blindaje de siempre sigue en pie — si la foto sale como campo pelado, NO se pisa la imagen
+    buena que la tarea ya tuviera.
+    """
+    from .models import SessionTask
+
+    task = SessionTask.objects.filter(pk=int(shot.task_id)).first()
+    if task is None:
+        return False, "la tarea ya no existe"
+    if snapshot_is_current(task):
+        return True, "ya estaba al día"
+
+    sig = board_signature(task)
+    if not sig:
+        return False, "la tarea no tiene dibujo que fotografiar"
+
+    usuario = shot.requested_by
+    if usuario is None:
+        return False, "nadie con permiso la ha pedido: abre la ficha una vez y se reintenta"
     try:
-        try:
-            png = _render(url, cookies, object_count)
-        except _ColaLlena:
-            _note(task_id, f"no se intento: cola llena (espera de {RENDER_GATE_TIMEOUT_SECONDS}s agotada)")
-            return
-        if not png:
-            logger.warning("board snapshot: render vacio para tarea %s", task_id)
-            timeout_ms, _settle = _timeouts_for(object_count)
-            _note(
-                task_id,
-                f"sin foto: Playwright no disponible o la pizarra no llego a estar lista "
-                f"({object_count} objetos, limite {timeout_ms // 1000}s) · {url}",
-            )
-            _mark_failed(task_id)
-            return
-        if not _looks_like_a_real_board(png):
-            # Blindaje (mismo criterio que la regeneracion de miniaturas): si sale el campo pelado
-            # sin fichas, NO pisamos la imagen buena que ya tenia la tarea.
-            logger.warning("board snapshot: descartada (campo vacio) para tarea %s", task_id)
-            _note(task_id, f"descartada: la foto sale como campo vacio (sin fichas) · {_stats_text(png)}")
-            _mark_failed(task_id)
-            return
-        jpeg = _to_jpeg(png)
-        _store(task_id, jpeg, sig)
-        _note(task_id, f"ok · {len(jpeg)} bytes")
+        cookies = cookies_for_user(usuario, base_url)
     except Exception as exc:
-        logger.exception("board snapshot: fallo en tarea %s", task_id)
-        _note(task_id, f"{type(exc).__name__}: {exc}")
-        _mark_failed(task_id)
-    finally:
-        with _inflight_lock:
-            _inflight.discard(task_id)
-        try:
-            connection.close()
-        except Exception:
-            pass
+        return False, f"no se pudo crear la sesión de {usuario}: {exc}"
+    if not cookies:
+        return False, f"no se pudo crear la sesión de {usuario}"
+
+    # "No hay navegador" y "la pizarra no cargó a tiempo" son problemas DISTINTOS —uno se arregla
+    # instalando algo y el otro esperando más— y el mensaje los daba juntos. Se comprueba antes,
+    # que además es instantáneo, para que el motivo escrito en la fila sirva de algo.
+    try:
+        import playwright  # noqa: F401
+    except Exception:
+        return False, "Playwright no está instalado en este proceso: sin navegador no hay foto"
+
+    url = editor_snapshot_url_for(task, base_url)
+    objetos = board_object_count(task)
+    try:
+        png = _render(url, cookies, objetos)
+    except _ColaLlena:
+        # NO es un fallo de la foto: es que habia otras delante. Distinguirlo no es un detalle,
+        # es la diferencia entre "esto esta roto" y "esto va en fila"; el diagnostico decia
+        # "(sin motivo guardado)" y parecia una averia. Por eso NO cuenta como intento: se
+        # devuelve a la cola tal cual, sin gastar uno de los cinco.
+        shot.leased_until = None
+        shot.save(update_fields=["leased_until", "updated_at"])
+        return False, "__en_cola__"
+    except Exception as exc:
+        logger.exception("board snapshot: fallo en tarea %s", shot.task_id)
+        return False, f"{type(exc).__name__}: {exc}"
+
+    if not png:
+        timeout_ms, _settle = _timeouts_for(objetos)
+        return False, (
+            f"la pizarra no llegó a estar lista en {timeout_ms // 1000}s ({objetos} objetos); "
+            f"o el navegador no pudo abrir {url}"
+        )
+    if not _looks_like_a_real_board(png):
+        return False, f"descartada: la foto sale como campo vacío · {_stats_text(png)}"
+
+    jpeg = _to_jpeg(png)
+    _store(int(task.id), jpeg, sig)
+    task.refresh_from_db()
+    if not snapshot_is_current(task):
+        # `_store` descarta si el dibujo cambió mientras fotografiábamos. No es un fallo del
+        # sistema: es que hay una versión más nueva, y su encargo ya está en la cola.
+        return False, "el dibujo cambió mientras se hacía la foto; se repetirá con el nuevo"
+    return True, f"ok · {len(jpeg)} bytes"
 
 
 class _ColaLlena(Exception):
@@ -504,14 +672,9 @@ def board_snapshot_status_view(request, task_id):
         return JsonResponse(_probe(request, task))
 
     force = str(request.GET.get("force") or "").strip() in {"1", "true", "yes"}
-    if force:
-        try:
-            cache.delete(_fail_key(int(task.id)))
-        except Exception:
-            pass
-    # OJO: consultar el estado NO debe encolar nada. Antes cada consulta lanzaba otra foto y
-    # se formaba cola sola (ademas con 2 workers el estado en memoria no es comparable).
-    queued = queue_snapshot(request, task, force=force) if force else False
+    # Consultar el estado NO fotografía nada: sólo (re)apunta el encargo. Quien lo cumple es
+    # `manage.py fotos_pizarra`, fuera de este proceso.
+    shot = request_snapshot(task, request.user, force=force) if force else shot_for(task)
 
     field = getattr(task, "task_preview_image", None)
     return JsonResponse({
@@ -521,59 +684,25 @@ def board_snapshot_status_view(request, task_id):
         "signature": board_signature(task),
         "stored_signature": stored_signature(task),
         "image": str(getattr(field, "name", "") or ""),
-        "queued": bool(queued),
-        "inflight": int(task.id) in _inflight,
-        "cooldown": bool(cache.get(_fail_key(int(task.id)))),
-        "last_note": cache.get(_last_error_key(int(task.id))) or "",
+        "estado": getattr(shot, "state", "") if shot else "sin encargo",
+        "intentos": int(getattr(shot, "attempts", 0) or 0) if shot else 0,
+        "proximo_intento": (
+            shot.next_try_at.isoformat() if shot and shot.next_try_at else ""
+        ),
+        "alquilado_hasta": (
+            shot.leased_until.isoformat() if shot and shot.leased_until else ""
+        ),
+        "last_note": getattr(shot, "last_error", "") if shot else "",
         "url": editor_snapshot_url(request, task),
     })
 
-def queue_many(request, tasks) -> int:
-    """Encola varias tareas en UN solo hilo que las procesa en fila.
-
-    La foto se generaba solo al abrir cada ficha, asi que una biblioteca entera tardaba en
-    ponerse al dia. Esto permite lanzarlas de golpe sin levantar N Chromium: el hilo va una por
-    una y cada foto sigue pasando por el mismo blindaje (si sale mal, no se pisa la imagen buena).
-    """
-    if not getattr(settings, "TASK_BOARD_SNAPSHOT_ENABLED", True):
-        return 0
-    cookies = session_cookies_for(request)
-    if not cookies:
-        return 0
-
-    jobs = []
-    for task in tasks:
-        try:
-            task_id = int(getattr(task, "id", 0) or 0)
-        except Exception:
-            continue
-        if not task_id or snapshot_is_current(task):
-            continue
-        sig = board_signature(task)
-        if not sig:
-            continue
-        with _inflight_lock:
-            if task_id in _inflight:
-                continue
-            _inflight.add(task_id)
-        jobs.append((task_id, editor_snapshot_url(request, task), sig, board_object_count(task)))
-
-    if not jobs:
-        return 0
-
-    def _run_all():
-        for task_id, url, sig, object_count in jobs:
-            try:
-                _render_and_store(task_id, url, cookies, sig, object_count)
-            except Exception:
-                logger.exception("board snapshot: fallo en lote, tarea %s", task_id)
-
-    threading.Thread(target=_run_all, name="board-snapshot-batch", daemon=True).start()
-    return len(jobs)
-
 
 def board_snapshot_batch_view(request):
-    """Pone al dia las fotos de la biblioteca: `?limit=` (por defecto 12, maximo 60)."""
+    """Mete en la cola las tareas sin foto al día: `?limit=` (por defecto 12, maximo 200).
+
+    Ya no levanta ningun Chromium aqui: solo apunta encargos. El servicio de fotos los va
+    vaciando de uno en uno, asi que pedir 200 no tumba nada, solo tarda mas en terminar.
+    """
     from django.http import JsonResponse
 
     from .models import SessionTask
@@ -586,7 +715,7 @@ def board_snapshot_batch_view(request):
         limit = int(request.GET.get("limit") or 12)
     except Exception:
         limit = 12
-    limit = max(1, min(limit, 60))
+    limit = max(1, min(limit, 200))
 
     qs = SessionTask.objects.order_by("-id")
     try:
@@ -596,22 +725,20 @@ def board_snapshot_batch_view(request):
     if team_id:
         qs = qs.filter(session__microcycle__team_id=team_id)
 
-    pending = []
-    for task in qs[: limit * 6]:
+    encoladas = []
+    for task in qs.iterator():
         if snapshot_is_current(task):
             continue
-        if cache.get(_fail_key(int(task.id))):
-            continue
-        pending.append(task)
-        if len(pending) >= limit:
+        if request_snapshot(task, request.user) is not None:
+            encoladas.append(int(task.id))
+        if len(encoladas) >= limit:
             break
 
-    started = queue_many(request, pending)
     return JsonResponse({
         "ok": True,
-        "encoladas": started,
-        "ids": [int(t.id) for t in pending][:started],
-        "nota": "Van de una en una; cada foto tarda 1-3 min. Vuelve a llamar para seguir.",
+        "encoladas": len(encoladas),
+        "ids": encoladas,
+        "nota": "Apuntadas en la cola. El servicio de fotos las va haciendo de una en una.",
     })
 
 _PROBE_JS = """() => {

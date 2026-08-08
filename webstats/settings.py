@@ -589,11 +589,22 @@ if not DEBUG and DATABASES['default']['ENGINE'] == 'django.db.backends.sqlite3' 
 # que invalidaciones (p.ej. edición manual de estadísticas) no se reflejen si el siguiente request
 # cae en otro worker con caché "vieja".
 #
-# Rendimiento: en Render solemos ejecutar con `WEB_CONCURRENCY=1`, así que LocMemCache es el backend
-# más rápido y suficiente. Si hay >1 worker y no se especifica `CACHE_BACKEND`, usamos FileBasedCache
-# como opción "shared" sin dependencias externas (aunque sea más lenta).
+# Rendimiento: con UN worker, LocMemCache es el backend más rápido y suficiente. Si hay más de uno
+# y no se especifica `CACHE_BACKEND`, usamos FileBasedCache como opción "shared" sin dependencias
+# externas (aunque sea más lenta).
+#
+# OJO CON DE DÓNDE SALE EL NÚMERO DE WORKERS (2026-08-08). Esto miraba sólo `WEB_CONCURRENCY`, y
+# en Render esa variable NO está definida: quien manda es `GUNICORN_WORKERS`, que vale 2 (ver
+# `render.yaml` y `start.sh`). O sea, la salvaguarda de arriba existía y nunca llegó a dispararse:
+# producción llevaba 2 procesos con una LocMemCache cada uno. Se notaba en cosas que parecían
+# fantasmas —el mismo dato contestando distinto según el worker que te tocara— y se llevó por
+# delante el diagnóstico de las fotos de pizarra durante horas. Ahora se mira lo que de verdad
+# arranca los procesos, y `WEB_CONCURRENCY` sigue valiendo por si algún día se usa.
 try:
-    _web_concurrency = int(os.getenv("WEB_CONCURRENCY") or "1")
+    _web_concurrency = max(
+        int(os.getenv("WEB_CONCURRENCY") or "1"),
+        int(os.getenv("GUNICORN_WORKERS") or "1"),
+    )
 except Exception:
     _web_concurrency = 1
 _default_cache_backend = 'locmem' if DEBUG else ('locmem' if _web_concurrency <= 1 else 'filebased')

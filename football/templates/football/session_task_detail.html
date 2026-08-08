@@ -1595,17 +1595,29 @@
         queda en blanco — la plantilla resuelve `pc.space_label` como ARGUMENTO de filtro, y ahi
         Django si lanza VariableDoesNotExist en vez de tragarselo. Asi que cada panel solo se pinta
         si su contexto existe; si falta, el boton recarga la pagina como antes.{% endcomment %}
-        {% if board_hd_pendiente %}
+        {% if board_hd_pendiente or board_hd_rendida %}
         {% comment %}
           El dibujo de la ficha es una FOTO del editor que se hace en segundo plano y tarda cerca
           de un minuto. Hasta ahora se encolaba en silencio: la pagina que ya estabas mirando se
           quedaba con el dibujo viejo y no habia forma de saber que venia uno nuevo, asi que
           parecia que editar la pizarra no actualizaba la ficha. Ahora se avisa y se recarga sola.
+
+          Y el segundo caso, que antes NO se contaba de ninguna manera: si la foto se intento
+          varias veces y no salio, la ficha lo dice y da un boton para volver a intentarlo. Antes
+          se rendia en silencio durante media hora y la unica pista era una nota guardada en la
+          memoria de UNO de los dos workers, o sea, invisible la mitad de las veces.
         {% endcomment %}
-        <div class="board-hd-aviso" data-board-hd-pendiente
+        <div class="board-hd-aviso{% if board_hd_rendida %} is-fallo{% endif %}"
+             {% if board_hd_pendiente %}data-board-hd-pendiente{% endif %}
              data-board-hd-url="{% url 'session-task-board-hd' task.id %}">
           <span class="board-hd-spin" aria-hidden="true"></span>
-          <span>Actualizando el dibujo de la ficha… <b data-board-hd-estado>se está fotografiando la pizarra</b></span>
+          {% if board_hd_rendida %}
+            <span>No se pudo actualizar el dibujo de la ficha.
+              <b>{{ board_hd_motivo|default:"sin detalle" }}</b></span>
+            <button type="button" class="button ghost board-hd-reintentar" data-board-hd-reintentar>Reintentar</button>
+          {% else %}
+            <span>Actualizando el dibujo de la ficha… <b data-board-hd-estado>se está fotografiando la pizarra</b></span>
+          {% endif %}
         </div>
         <style>
           .board-hd-aviso { display:flex; align-items:center; gap:0.55rem; margin:0 0 0.7rem;
@@ -1618,10 +1630,26 @@
           @keyframes board-hd-giro { to { transform:rotate(360deg); } }
           .board-hd-aviso.is-listo { border-color:rgba(134,239,172,0.45); background:rgba(134,239,172,0.12); }
           .board-hd-aviso.is-listo .board-hd-spin { animation:none; border-color:#86efac; border-top-color:#86efac; }
+          .board-hd-aviso.is-fallo { border-color:rgba(248,113,113,0.45); background:rgba(248,113,113,0.10); }
+          .board-hd-aviso.is-fallo .board-hd-spin { animation:none; border-color:#f87171; border-top-color:#f87171; }
+          .board-hd-reintentar { margin-left:auto; flex:none; font-size:0.8rem; padding:0.25rem 0.7rem; }
           @media print { .board-hd-aviso { display:none; } }
         </style>
         <script>
           (function () {
+            // Reintentar a mano: vuelve a armar el encargo (`force=1` pone los intentos a cero) y
+            // recarga. La foto la sigue haciendo el servicio de fotos, no esta pagina.
+            var boton = document.querySelector('[data-board-hd-reintentar]');
+            if (boton) {
+              boton.addEventListener('click', function () {
+                var caja = boton.closest('.board-hd-aviso');
+                boton.disabled = true;
+                boton.textContent = 'Reintentando…';
+                fetch(caja.getAttribute('data-board-hd-url') + '?force=1', { credentials: 'same-origin', cache: 'no-store' })
+                  .then(function () { location.reload(); })
+                  .catch(function () { boton.disabled = false; boton.textContent = 'Reintentar'; });
+              });
+            }
             var caja = document.querySelector('[data-board-hd-pendiente]');
             if (!caja) return;
             var url = caja.getAttribute('data-board-hd-url');
@@ -1640,6 +1668,11 @@
                     caja.classList.add('is-listo');
                     if (estado) estado.textContent = 'listo, recargando…';
                     setTimeout(function () { location.reload(); }, 900);
+                  } else if (d && d.estado === 'rendida') {
+                    // Se rindio mientras mirabas: recargamos para que salga el aviso rojo con el
+                    // motivo y el boton de reintentar, en vez de girar la rueda para siempre.
+                    clearInterval(reloj);
+                    location.reload();
                   } else if (d && d.last_note && estado) {
                     estado.textContent = String(d.last_note).slice(0, 90);
                   }

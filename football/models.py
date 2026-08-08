@@ -5913,3 +5913,66 @@ class CoachPitchBoardLayout(models.Model):
 
     def __str__(self):
         return f'Pizarra · {self.team.name}'
+
+
+class TaskBoardShot(models.Model):
+    """Encargo DURABLE de la foto HD de la pizarra de una tarea.
+
+    Antes el encargo era un HILO dentro del proceso web: abrir la ficha lanzaba a Playwright en
+    segundo plano y la contabilidad (en marcha / enfriamiento / último error) vivía en `cache`, que
+    en producción es LocMemCache. Eso tenía dos agujeros que se comían las fotos sin dejar rastro:
+
+    - **Corremos con 2 workers de gunicorn.** Cada uno tenía su propia memoria, así que el estado
+      que veías dependía del worker que te contestara: consultar dos veces daba respuestas
+      distintas y el enfriamiento tras un fallo sólo frenaba a la mitad de la casa.
+    - **Un reinicio del worker se llevaba el hilo por delante.** Render reinicia por despliegue o
+      por memoria —y levantar Chromium junto a Ollama en 2 GB es justo lo que lo provoca—, y al
+      volver no quedaba ni la foto, ni el error, ni constancia de que se hubiera pedido. La tarea
+      1160 se quedó así: encargada, sin foto y sin una sola línea que lo contase.
+
+    Una fila sobrevive a todo eso. El proceso web sólo la marca pendiente (un UPDATE), y quien
+    fotografía es otro proceso que puede morirse sin perder el encargo: `leased_until` caduca y
+    la tarea vuelve a la cola sola.
+    """
+
+    PENDIENTE = 'pendiente'
+    HECHA = 'hecha'
+    RENDIDA = 'rendida'
+    ESTADO_CHOICES = [
+        (PENDIENTE, 'Pendiente'),
+        (HECHA, 'Hecha'),
+        (RENDIDA, 'Rendida tras varios intentos'),
+    ]
+
+    # Cuántos intentos antes de dejar de insistir. No es un abandono silencioso: el estado
+    # `RENDIDA` y `last_error` quedan a la vista en la ficha y en el listado.
+    MAX_INTENTOS = 5
+
+    task = models.OneToOneField(SessionTask, on_delete=models.CASCADE, related_name='board_shot')
+    # Firma del DIBUJO que hay que fotografiar. Si cambia, el encargo se renueva: la foto en curso
+    # ya no vale (`task_board_snapshot._store` la descarta por su cuenta).
+    signature = models.CharField(max_length=64, blank=True, default='')
+    state = models.CharField(max_length=16, choices=ESTADO_CHOICES, default=PENDIENTE, db_index=True)
+    attempts = models.PositiveIntegerField(default=0)
+    last_error = models.CharField(max_length=400, blank=True, default='')
+    # Quién la pidió. La foto abre el editor REAL con una sesión, así que hace falta alguien con
+    # permiso: se guarda al encolar y el proceso que fotografía se hace la sesión de esa persona.
+    # Sin usuario no se inventa uno: se queda pendiente hasta que alguien con permiso la pida.
+    requested_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
+    requested_at = models.DateTimeField(default=timezone.now)
+    updated_at = models.DateTimeField(auto_now=True)
+    # Espera creciente entre intentos: 1, 4, 9... minutos. Un fallo no bloquea 30 minutos a ciegas.
+    next_try_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    # Alquiler: mientras no caduque, nadie más coge este encargo. Si el proceso que lo tenía se
+    # muere a mitad, caduca solo y otro lo recoge. Esto es lo que el hilo no sabía hacer.
+    leased_until = models.DateTimeField(null=True, blank=True, db_index=True)
+
+    class Meta:
+        verbose_name = 'Foto HD de pizarra'
+        verbose_name_plural = 'Fotos HD de pizarra'
+        indexes = [
+            models.Index(fields=['state', 'next_try_at'], name='taskshot_cola_idx'),
+        ]
+
+    def __str__(self):
+        return f'Foto pizarra · tarea {self.task_id} · {self.state}'
