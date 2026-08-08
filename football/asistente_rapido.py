@@ -234,8 +234,10 @@ def respuesta_sugerencias(tareas, texto, total=None, url_todas=""):
 # unas palabras: eso es exactamente lo que hacia el guardian con las reparaciones.
 
 _TEMAS = (
-    ("asistencia", ("ausente", "ausencia", "presente", "asiste", "asistencia", "no viene",
-                    "falta", "convoca", "convocatoria")),
+    ("asistencia", ("ausente", "ausencia", "presente", "asiste", "asistencia",
+                    "no viene", "no vino", "no ha venido", "no asistio", "no asistió",
+                    "falta", "falto", "faltó", "vino", "entreno", "entrenamiento",
+                    "convoca", "convocatoria")),
     ("lesion", ("lesion", "lesionado", "lesionada", "baja", "molestia", "recaida")),
     ("evaluacion", ("evaluacion", "valoracion", "nota", "puntua", "califica")),
 )

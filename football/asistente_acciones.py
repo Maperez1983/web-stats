@@ -36,8 +36,13 @@ NO = {"no", "cancela", "cancelar", "dejalo", "déjalo", "para", "olvidalo", "olv
 
 # Cómo se dice cada estado y cómo lo llama él.
 ESTADOS = (
-    ("absent", "ausente", ("ausente", "ausencia", "no viene", "no va a venir", "falta", "no asiste")),
-    ("present", "presente", ("presente", "si viene", "asiste", "viene")),
+    # En pasado tambien: la asistencia se apunta DESPUES del entreno, y ahi nadie dice
+    # "no viene", dice "no vino" o "faltó".
+    ("absent", "ausente", ("ausente", "ausencia", "no viene", "no vino", "no ha venido",
+                           "no va a venir", "no asiste", "no asistio", "no asistió",
+                           "falta", "falto", "faltó")),
+    ("present", "presente", ("presente", "si viene", "asiste", "asistio", "asistió",
+                             "vino", "ha venido", "viene")),
     ("late", "llega tarde", ("tarde", "retraso", "llega tarde")),
     ("injured", "lesionado", ("lesionado", "lesionada", "lesion")),
     ("excused", "justificado", ("justificado", "justificada", "con permiso", "excusado")),
