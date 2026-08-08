@@ -604,6 +604,26 @@ def _cortar_reconoce(frase):
             and contiene(frase, "clip", "clips", "corte", "cortes", "video", "jugadas"))
 
 
+# Las marcas de la LINEA DE TIEMPO del estudio. Son otra cosa que el registro del partido:
+# viven en el video, con el tiempo del video, y las pones tu analizando. Para ANALISIS es lo
+# que vale: no dependen de que el partido sea tuyo ni de que este marcado el saque inicial.
+MARCAS_ESTUDIO = (
+    (("corner", "corners", "esquina", "esquinas", "abp", "estrategia", "balon parado"), "abp", "ABP"),
+    (("gol", "goles"), "goal", "goles"),
+    (("tiro", "tiros", "remate", "remates", "ocasion", "ocasiones"), "shot", "remates"),
+    (("presion", "presiones"), "press", "presión"),
+    (("perdida", "perdidas", "robo", "robos"), "turnover", "pérdidas"),
+)
+
+
+def _marca_estudio_pedida(frase):
+    q = sin_tildes(frase)
+    for palabras, clave, etiqueta in MARCAS_ESTUDIO:
+        if any(re.search(r"\b" + p + r"\b", q) for p in palabras):
+            return clave, etiqueta
+    return "", ""
+
+
 def _que_acciones(frase):
     """Qué acciones pide: devuelve (palabras a buscar, cómo llamarlas)."""
     q = sin_tildes(frase)
@@ -648,6 +668,32 @@ def _cortar_prepara(frase, ctx):
     if not palabras:
         return ("¿Qué quieres que corte? Dímelo así: «córtame los córners del partido contra "
                 "La Mosca».", None)
+    # PRIMERO el camino de ANALISIS: marcas puestas en la linea de tiempo del estudio. Son
+    # tiempos del VIDEO, asi que valen para cualquier video -tambien el de un rival- y no
+    # necesitan ni registro del partido ni saque inicial marcado. Registrar acciones en un
+    # partido y analizar un video son dos cosas distintas y esta es la del analisis.
+    clave_marca, etiqueta_marca = _marca_estudio_pedida(frase)
+    if clave_marca:
+        from football.models import RivalVideo, VideoTimelineEvent
+
+        video_est = (
+            RivalVideo.objects.filter(team=ctx["equipo"])
+            .order_by("-is_base", "-id")
+            .first()
+        )
+        if video_est is not None:
+            marcas = list(
+                VideoTimelineEvent.objects.filter(team=ctx["equipo"], video=video_est,
+                                                  kind=clave_marca)
+                .order_by("time_ms")[:40]
+            )
+            if marcas:
+                return (f"Voy a crear {len(marcas)} clip{'s' if len(marcas) != 1 else ''} de "
+                        f"{etiqueta_marca} del vídeo «{str(video_est.title or '')[:34]}», a partir "
+                        "de las marcas que dejaste en la línea de tiempo. ¿Confirmo?",
+                        {"video_id": int(video_est.id), "marca_ids": [int(m.id) for m in marcas],
+                         "etiqueta": etiqueta_marca, "equipo_id": int(ctx["equipo"].id)})
+
     partido = _partido_referido(frase, ctx["equipo"])
     if partido is None:
         return "No encuentro ese partido.", None
@@ -695,7 +741,34 @@ def _rival_del(partido, equipo):
 
 
 def _cortar_ejecuta(datos, ctx):
-    from football.models import MatchEvent, RivalVideo, Team, VideoClip
+    from football.models import MatchEvent, RivalVideo, Team, VideoClip, VideoTimelineEvent
+
+    # Camino de ANALISIS: las marcas ya llevan el tiempo del video, no hay nada que calcular.
+    if datos.get("marca_ids"):
+        video = RivalVideo.objects.filter(id=int(datos["video_id"])).first()
+        equipo = Team.objects.filter(id=int(datos["equipo_id"])).first()
+        if video is None or equipo is None:
+            return False, "Ya no encuentro ese vídeo."
+        usuario = ctx.get("usuario") if getattr(ctx.get("usuario"), "is_authenticated", False) else None
+        creados = 0
+        for m in VideoTimelineEvent.objects.filter(id__in=datos["marca_ids"]).order_by("time_ms"):
+            centro = int(getattr(m, "time_ms", 0) or 0)
+            titulo = str(getattr(m, "label", "") or "").strip() or str(datos.get("etiqueta", "")).capitalize()
+            try:
+                VideoClip.objects.create(
+                    team=equipo, video=video, owner_user=usuario, created_by=usuario,
+                    title=f"{titulo} {centro // 60000}'"[:120],
+                    in_ms=max(0, centro - SEGUNDOS_ANTES * 1000),
+                    out_ms=centro + SEGUNDOS_DESPUES * 1000,
+                )
+                creados += 1
+            except Exception:
+                logger.debug("no se pudo crear un clip desde la linea de tiempo", exc_info=True)
+        if not creados:
+            return False, "No he podido crear los clips."
+        return True, (f"Creados {creados} clips de {datos.get('etiqueta', '')} desde tus marcas."
+                      "\n\nVer: /coach/analisis/")
+
 
     video = RivalVideo.objects.filter(id=int(datos["video_id"])).first()
     equipo = Team.objects.filter(id=int(datos["equipo_id"])).first()
