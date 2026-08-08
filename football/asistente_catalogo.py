@@ -131,18 +131,28 @@ def _tarea_nombrada(frase, equipo):
     # Se BUSCA en la base de datos por las palabras de la frase, no se recorren "las ultimas
     # 400": la tarea que pides puede ser antigua. Medido en produccion: "borra la tarea Rondo 8
     # x 2" no la encontraba porque su id quedaba fuera del corte, y acababa proponiendo otra.
-    palabras = [p_ for p_ in re.split(r"[^a-z0-9]+", q) if len(p_) >= 4][:6]
+    # SE BUSCA EL TITULO, no se traen tareas para compararlas. Traer "las N mas recientes" y
+    # comparar en Python siempre deja fuera lo antiguo: con el corte en 200 no entraba la tarea
+    # que pedias -id 385- y el asistente proponia otra parecida. Aqui se generan los trozos de
+    # la frase (de mas largo a mas corto) y se pregunta a la base de datos cual de ellos ES el
+    # titulo de una tarea. Sin cortes y sin sorpresas.
+    palabras = [p_ for p_ in q.split(" ") if p_]
     if not palabras:
         return None, []
+    trozos = []
+    for ini in range(len(palabras)):
+        for fin in range(len(palabras), ini, -1):
+            if fin - ini > 10:
+                continue
+            trozo = " ".join(palabras[ini:fin])
+            if len(trozo) >= 4:
+                trozos.append(trozo)
+    trozos = sorted(set(trozos), key=len, reverse=True)[:40]
+
     filtro = Q()
-    for palabra in palabras:
-        filtro |= Q(title__icontains=palabra)
-    ULTIMA_BUSQUEDA["frase"] = q
-    ULTIMA_BUSQUEDA["palabras"] = list(palabras)
-    # Y las COMPARTIDAS de la categoria, no solo las de tu equipo. La biblioteca es del club:
-    # tu ves "RONDO 8 x 2" en tu pantalla aunque cuelgue de otro equipo, asi que pedirla por su
-    # nombre tiene que funcionar. Sin esto el asistente solo encontraba las propias y acababa
-    # proponiendo otra tarea con un titulo parecido.
+    for trozo in trozos:
+        filtro |= Q(title__iexact=trozo)
+
     try:
         from football.library_sharing import ids_de_tareas_compartidas_de_un_equipo
 
@@ -152,20 +162,16 @@ def _tarea_nombrada(frase, equipo):
     alcance = Q(session__microcycle__team=equipo)
     if compartidas:
         alcance |= Q(id__in=list(compartidas)[:2000])
-    candidatas = []
-    mirados = []
-    for t in (
+
+    candidatas = list(
         SessionTask.objects.select_related("session__microcycle")
         .defer("tactical_layout", "preview_data_b64", "cover_data_b64")
         .filter(alcance, deleted_at__isnull=True)
         .filter(filtro)
-        .order_by("-id")[:200]
-    ):
-        mirados.append(t)
-        titulo = clave_texto(str(getattr(t, "title", "") or ""))
-        if len(titulo) >= 4 and titulo in q:
-            candidatas.append(t)
-    ULTIMA_BUSQUEDA["en_alcance"] = len(mirados)
+    )
+    ULTIMA_BUSQUEDA["frase"] = q
+    ULTIMA_BUSQUEDA["palabras"] = trozos[:5]
+    ULTIMA_BUSQUEDA["en_alcance"] = len(candidatas)
     ULTIMA_BUSQUEDA["candidatas"] = [str(getattr(t, "title", "") or "")[:40] for t in candidatas[:8]]
     # Si varias comparten titulo, se distinguen por la FECHA de su sesion. Tiene tres tareas
     # llamadas exactamente "RONDO 8 x 2": sin esto, o eliges una al azar o preguntas con tres
