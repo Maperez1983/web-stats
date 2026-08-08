@@ -89,6 +89,30 @@ def _bloque_pedido(frase):
     return mejor[1] if mejor else ""
 
 
+def _fecha_de(tarea):
+    """dd/mm de la sesion de la tarea, o ''."""
+    try:
+        f = tarea.session.session_date
+        return f.strftime("%d/%m") if f else ""
+    except Exception:
+        return ""
+
+
+def _fecha_en_la_frase(frase):
+    """Una fecha dicha como 16/09 o 16-9. Solo dia y mes: es como se habla."""
+    m = re.search(r"\b(\d{1,2})[/\-](\d{1,2})\b", str(frase or ""))
+    if not m:
+        return ""
+    return f"{int(m.group(1)):02d}/{int(m.group(2)):02d}"
+
+
+def etiqueta_tarea(tarea):
+    """Como se nombra una tarea cuando hay que distinguirla de otra igual."""
+    titulo = str(getattr(tarea, "title", "") or "").strip()[:40]
+    fecha = _fecha_de(tarea)
+    return f"{titulo} ({fecha})" if fecha else titulo
+
+
 def _tarea_nombrada(frase, equipo):
     """La tarea a la que se refiere, buscando su título dentro de la frase.
 
@@ -132,6 +156,15 @@ def _tarea_nombrada(frase, equipo):
         titulo = clave_texto(str(getattr(t, "title", "") or ""))
         if len(titulo) >= 4 and titulo in q:
             candidatas.append(t)
+    # Si varias comparten titulo, se distinguen por la FECHA de su sesion. Tiene tres tareas
+    # llamadas exactamente "RONDO 8 x 2": sin esto, o eliges una al azar o preguntas con tres
+    # opciones identicas, que es igual de inutil.
+    fecha_pedida = _fecha_en_la_frase(frase)
+    if fecha_pedida and len(candidatas) > 1:
+        porFecha = [t for t in candidatas if _fecha_de(t) == fecha_pedida]
+        if porFecha:
+            candidatas = porFecha
+
     # GANA EL TITULO MAS LARGO. Con una tarea llamada "RONDO" y otra "Rondo 8 x 2", pedir la
     # segunda hacia que encajaran las dos, y quedarse con cualquiera es apuntar a la equivocada:
     # medido en produccion, "borra la tarea Rondo 8 x 2" proponia borrar "RONDO". El titulo mas
@@ -161,8 +194,9 @@ def _mover_bloque_prepara(frase, ctx):
     tarea, candidatas = _tarea_nombrada(frase, ctx["equipo"])
     if tarea is None:
         if len(candidatas) > 1:
-            nombres = ", ".join(str(t.title or "")[:30] for t in candidatas[:5])
-            return f"¿Cuál de estas? {nombres}. Dímelo con el título completo.", None
+            nombres = " · ".join(etiqueta_tarea(t) for t in candidatas[:5])
+            return (f"Tienes varias con ese nombre: {nombres}. Dime la fecha, "
+                    "por ejemplo «la del 16/09».", None)
         return ("No sé qué tarea es. Dime su título tal cual aparece, por ejemplo: "
                 "«mueve Rondo 6 vs 3 a principal 2».", None)
     bloque = _bloque_pedido(frase)
@@ -201,8 +235,9 @@ def _borrar_prepara(frase, ctx):
     tarea, candidatas = _tarea_nombrada(frase, ctx["equipo"])
     if tarea is None:
         if len(candidatas) > 1:
-            nombres = ", ".join(str(t.title or "")[:30] for t in candidatas[:5])
-            return f"¿Cuál de estas? {nombres}.", None
+            nombres = " · ".join(etiqueta_tarea(t) for t in candidatas[:5])
+            return (f"Tienes varias con ese nombre: {nombres}. Dime la fecha, "
+                    "por ejemplo «la del 16/09».", None)
         return "No sé qué tarea es. Dime su título tal cual.", None
     return (
         f"Voy a mandar «{tarea.title}» a la papelera. Se puede recuperar. ¿Confirmo?",
@@ -296,6 +331,111 @@ def _seguir_ejecuta(datos, ctx):
                   "\n\nVer: /coach/seguimiento/")
 
 
+# ---- duplicar una tarea ----------------------------------------------------------------------
+
+def _duplicar_reconoce(frase):
+    return dice(frase, "duplica", "duplicar", "copia", "copiar", "clona", "clonar")
+
+
+def _duplicar_prepara(frase, ctx):
+    tarea, candidatas = _tarea_nombrada(frase, ctx["equipo"])
+    if tarea is None:
+        if len(candidatas) > 1:
+            nombres = " · ".join(etiqueta_tarea(t) for t in candidatas[:5])
+            return f"Tienes varias con ese nombre: {nombres}. Dime la fecha.", None
+        return "No sé qué tarea quieres duplicar. Dime su título tal cual.", None
+    return f"Voy a duplicar «{tarea.title}». ¿Confirmo?", {"tarea_id": int(tarea.id)}
+
+
+def _duplicar_ejecuta(datos, ctx):
+    from football.models import SessionTask
+
+    original = SessionTask.objects.filter(id=int(datos["tarea_id"])).first()
+    if original is None:
+        return False, "Esa tarea ya no está."
+    # Copia por campos, sin `pk=None`+save: asi no se arrastran por accidente columnas que no
+    # tocan (la portada embebida, el PDF) y se ve exactamente que se duplica.
+    copia = SessionTask.objects.create(
+        session=original.session,
+        title=f"{original.title} (copia)"[:160],
+        block=original.block,
+        duration_minutes=original.duration_minutes,
+        objective=original.objective,
+        coaching_points=original.coaching_points,
+        confrontation_rules=original.confrontation_rules,
+        notes=original.notes,
+        tactical_layout=original.tactical_layout,
+    )
+    return True, (f"Duplicada: «{copia.title}»."
+                  f"\n\nAbrir: /coach/sesiones/tareas/{int(copia.id)}/editar/")
+
+
+# ---- dejar de seguir a un jugador -------------------------------------------------------------
+
+def _dejar_seguir_reconoce(frase):
+    return contiene(frase, "dejar de seguir", "deja de seguir", "quitar del seguimiento",
+                    "quita del seguimiento", "sacar del seguimiento")
+
+
+def _dejar_seguir_prepara(frase, ctx):
+    jug = ctx.get("jugador")
+    if jug is None:
+        return "Dime a quién quieres quitar del seguimiento.", None
+    return (f"Voy a quitar a {getattr(jug, 'name', '')} del seguimiento. ¿Confirmo?",
+            {"player_id": int(jug.id)})
+
+
+def _dejar_seguir_ejecuta(datos, ctx):
+    from football.models import Player, SeasonWatch
+
+    p = Player.objects.filter(id=int(datos["player_id"])).first()
+    if p is None:
+        return False, "Ya no encuentro a ese jugador."
+    n = SeasonWatch.objects.filter(player=p, is_active=True).update(is_active=False)
+    if not n:
+        return True, f"{p.name} no estaba en el seguimiento."
+    return True, f"{p.name} sale del seguimiento.\n\nVer: /coach/seguimiento/"
+
+
+# ---- cambiar la duracion de una tarea ---------------------------------------------------------
+
+def _duracion_reconoce(frase):
+    return (dice(frase, "duracion", "duración", "dura", "minutos", "min")
+            and bool(re.search(r"\b\d{1,3}\b", sin_tildes(frase)))
+            and dice(frase, "pon", "poner", "cambia", "cambiar", "deja", "dejar", "ajusta"))
+
+
+def _duracion_prepara(frase, ctx):
+    tarea, candidatas = _tarea_nombrada(frase, ctx["equipo"])
+    if tarea is None:
+        if len(candidatas) > 1:
+            return ("Tienes varias con ese nombre: "
+                    + " · ".join(etiqueta_tarea(t) for t in candidatas[:5])
+                    + ". Dime la fecha.", None)
+        return "No sé de qué tarea hablas. Dime su título tal cual.", None
+    # El numero de los minutos, no el del titulo: se busca DESPUES del titulo en la frase.
+    resto = clave_texto(frase).split(clave_texto(str(tarea.title or "")))[-1]
+    m = re.search(r"\b(\d{1,3})\b", resto)
+    if not m:
+        return "No he visto los minutos. Dímelo así: «pon Rondo 6 vs 3 en 20 minutos».", None
+    minutos = max(5, min(int(m.group(1)), 90))
+    return (f"Voy a dejar «{tarea.title}» en {minutos} minutos (ahora tiene "
+            f"{int(tarea.duration_minutes or 0)}). ¿Confirmo?",
+            {"tarea_id": int(tarea.id), "minutos": minutos})
+
+
+def _duracion_ejecuta(datos, ctx):
+    from football.models import SessionTask
+
+    t = SessionTask.objects.filter(id=int(datos["tarea_id"])).first()
+    if t is None:
+        return False, "Esa tarea ya no está."
+    t.duration_minutes = int(datos["minutos"])
+    t.save(update_fields=["duration_minutes"])
+    return True, (f"«{t.title}» dura ahora {t.duration_minutes} minutos."
+                  f"\n\nVer: /coach/sesiones/tarea/{int(t.id)}/")
+
+
 CATALOGO = (
     {"clave": "mover_bloque", "reconoce": _mover_bloque_reconoce,
      "prepara": _mover_bloque_prepara, "ejecuta": _mover_bloque_ejecuta},
@@ -303,8 +443,15 @@ CATALOGO = (
      "prepara": _borrar_prepara, "ejecuta": _borrar_ejecuta},
     {"clave": "restaurar_tarea", "reconoce": _restaurar_reconoce,
      "prepara": _restaurar_prepara, "ejecuta": _restaurar_ejecuta},
+    # "dejar de seguir" ANTES que "seguir": la segunda encaja dentro de la primera.
+    {"clave": "dejar_seguir", "reconoce": _dejar_seguir_reconoce,
+     "prepara": _dejar_seguir_prepara, "ejecuta": _dejar_seguir_ejecuta},
     {"clave": "seguir_jugador", "reconoce": _seguir_reconoce,
      "prepara": _seguir_prepara, "ejecuta": _seguir_ejecuta},
+    {"clave": "duplicar_tarea", "reconoce": _duplicar_reconoce,
+     "prepara": _duplicar_prepara, "ejecuta": _duplicar_ejecuta},
+    {"clave": "duracion_tarea", "reconoce": _duracion_reconoce,
+     "prepara": _duracion_prepara, "ejecuta": _duracion_ejecuta},
 )
 
 

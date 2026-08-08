@@ -154,6 +154,39 @@ class AsistenteAccionesTests(TestCase):
         self.assertIsNone(corta.deleted_at)      # la corta NO se toca
         self.assertIsNotNone(larga.deleted_at)
 
+    def test_duplicar_una_tarea(self):
+        from football.models import SessionTask
+
+        SessionTask.objects.create(session=self.session, title="Rondo 4 vs 2", duration_minutes=15)
+        self._decir("duplica Rondo 4 vs 2")
+        self._decir("sí")
+        self.assertEqual(SessionTask.objects.filter(title="Rondo 4 vs 2 (copia)").count(), 1)
+
+    def test_cambiar_la_duracion(self):
+        from football.models import SessionTask
+
+        t = SessionTask.objects.create(session=self.session, title="Rondo 5 vs 5", duration_minutes=15)
+        self._decir("pon Rondo 5 vs 5 en 25 minutos")
+        self._decir("sí")
+        t.refresh_from_db()
+        self.assertEqual(t.duration_minutes, 25)
+
+    def test_dos_tareas_con_el_mismo_titulo_se_distinguen_por_fecha(self):
+        # Tiene TRES tareas llamadas "RONDO 8 x 2". Preguntar con tres opciones identicas es
+        # tan inutil como elegir al azar: hay que enseñar la fecha.
+        from datetime import timedelta
+
+        from football.models import SessionTask, TrainingSession
+
+        otra_sesion = TrainingSession.objects.create(
+            microcycle=self.micro, session_date=date.today() + timedelta(days=2), focus="Otra"
+        )
+        SessionTask.objects.create(session=self.session, title="RONDO 8 x 2")
+        SessionTask.objects.create(session=otra_sesion, title="RONDO 8 x 2")
+        respuesta = self._decir("borra la tarea RONDO 8 x 2")
+        self.assertIn("Dime la fecha", respuesta)
+        self.assertIn(self.session.session_date.strftime("%d/%m"), respuesta)
+
     def test_un_si_suelto_no_ejecuta_nada(self):
         respuesta = self._decir("sí")
         self.assertIn("nada pendiente", respuesta.lower())
