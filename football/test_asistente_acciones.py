@@ -97,6 +97,48 @@ class AsistenteAccionesTests(TestCase):
         self.assertNotIn("¿A cuál de estos", respuesta)
         self.assertIn("Nico Ruiz", respuesta)
 
+    def test_mover_una_tarea_de_bloque(self):
+        from football.models import SessionTask
+
+        tarea = SessionTask.objects.create(
+            session=self.session, title="Rondo 6 vs 3", block=SessionTask.BLOCK_MAIN_1
+        )
+        respuesta = self._decir("mueve Rondo 6 vs 3 a vuelta a la calma")
+        self.assertIn("¿Confirmo?", respuesta)
+        tarea.refresh_from_db()
+        self.assertEqual(tarea.block, SessionTask.BLOCK_MAIN_1)  # aún no
+
+        self._decir("sí")
+        tarea.refresh_from_db()
+        self.assertEqual(tarea.block, SessionTask.BLOCK_RECOVERY)
+
+    def test_borrar_una_tarea_la_manda_a_la_papelera_y_se_recupera(self):
+        from football.models import SessionTask
+
+        tarea = SessionTask.objects.create(session=self.session, title="Rondo 8 x 2")
+        self._decir("borra la tarea Rondo 8 x 2")
+        self._decir("sí")
+        tarea.refresh_from_db()
+        # A la PAPELERA, no destruida: tiene que poder volver.
+        self.assertIsNotNone(tarea.deleted_at)
+        self.assertTrue(SessionTask.objects.filter(id=tarea.id).exists())
+
+        self._decir("restaura la tarea Rondo 8 x 2")
+        self._decir("sí")
+        tarea.refresh_from_db()
+        self.assertIsNone(tarea.deleted_at)
+
+    def test_una_accion_del_catalogo_no_escribe_si_dices_que_no(self):
+        from football.models import SessionTask
+
+        tarea = SessionTask.objects.create(
+            session=self.session, title="Rondo 4 x 4", block=SessionTask.BLOCK_MAIN_1
+        )
+        self._decir("mueve Rondo 4 x 4 a ABP")
+        self._decir("no")
+        tarea.refresh_from_db()
+        self.assertEqual(tarea.block, SessionTask.BLOCK_MAIN_1)
+
     def test_un_si_suelto_no_ejecuta_nada(self):
         respuesta = self._decir("sí")
         self.assertIn("nada pendiente", respuesta.lower())
