@@ -41938,6 +41938,125 @@
 			      isSubmitting = false;
 			      setSubmitLock(false);
 			    };
+			    // GUARDAR NO PUEDE QUEDARSE MUDO (2026-08-08).
+			    //
+			    // "Tipo de tarea" es obligatorio y vive en el panel lateral "design". Si ese panel esta
+			    // cerrado -que es como arranca el editor- el navegador no puede ni enfocar el campo para
+			    // quejarse: aborta el envio y deja en consola "An invalid form control with
+			    // name='task_family' is not focusable". Desde fuera: pulsas Guardar y NO PASA NADA.
+			    //
+			    // No es un caso raro: 448 de las 957 tareas de produccion no tienen ese campo relleno.
+			    //
+			    // OJO CON DONDE SE ENGANCHA ESTO. El primer intento fue un `checkValidity()` dentro del
+			    // manejador de `submit`, y NO SERVIA: cuando la validacion nativa falla, el evento
+			    // `submit` no llega a dispararse nunca, asi que ese codigo no se ejecutaba. Lo que si
+			    // se dispara es `invalid`, sobre cada campo invalido — y como `invalid` NO BURBUJEA,
+			    // hay que escucharlo en fase de captura (el `true` del final).
+			    form.addEventListener('invalid', (evento) => {
+			      const campo = evento.target;
+			      if (!campo) return;
+			      const abrirDondeVive = () => {
+			        const panel = campo.closest ? campo.closest('.side-pane') : null;
+			        if (panel && panel.dataset && panel.dataset.pane) {
+			          try { activateSidePane(safeText(panel.dataset.pane)); } catch (e) { /* ignore */ }
+			        }
+			      };
+			      abrirDondeVive();
+			      // Abrir la pestania NO BASTA si el editor esta en modo presentacion: ese modo esconde
+			      // el panel lateral ENTERO (`aside.panel` a display:none), asi que el campo sigue sin
+			      // existir en pantalla y el usuario lee "falta rellenar X" sin poder llegar a X.
+			      // Si tras abrir la pestania el campo sigue midiendo cero, salimos del modo foco y
+			      // volvemos a abrirla.
+			      try {
+			        if (campo.getBoundingClientRect().height === 0) {
+			          const salir = document.getElementById('task-focus-exit');
+			          if (salir) {
+			            salir.click();
+			            abrirDondeVive();
+			          }
+			        }
+			      } catch (e) { /* ignore */ }
+			      try { campo.scrollIntoView({ block: 'center', behavior: 'smooth' }); } catch (e) { /* ignore */ }
+			      try { campo.focus({ preventScroll: true }); } catch (e) { /* ignore */ }
+			      let nombre = '';
+			      try {
+			        const etiqueta = campo.closest('label');
+			        nombre = safeText(etiqueta && etiqueta.childNodes[0] ? etiqueta.childNodes[0].textContent : '');
+			      } catch (e) { /* ignore */ }
+			      if (!nombre) nombre = safeText(campo.name, 'un campo obligatorio');
+			      try { setStatus('Falta rellenar «' + nombre + '» para poder guardar.', true); } catch (e) { /* ignore */ }
+			      // Y si AUN ASI el campo no esta en pantalla, decirlo no sirve de nada: en la carcasa
+			      // actual el panel lateral no se abre, asi que "Tipo de tarea" es literalmente
+			      // inalcanzable y esas 448 tareas NO SE PUEDEN GUARDAR. Preguntamos aqui mismo.
+			      try {
+			        if (campo.getBoundingClientRect().height === 0 && campo.tagName === 'SELECT') {
+			          pedirValorInalcanzable(campo, nombre);
+			        }
+			      } catch (e) { /* ignore */ }
+			      // El cerrojo lo pone el manejador de `submit`, que aqui no ha corrido; aun asi lo
+			      // soltamos por si se llego por `requestSubmit()` desde la segunda pasada.
+			      try { resetSubmitState(); } catch (e) { /* ignore */ }
+			    }, true);
+			    // Elegir el valor de un desplegable OBLIGATORIO que no se ve en pantalla.
+			    //
+			    // Se construye a partir de las opciones del propio `<select>`, asi que no duplica el
+			    // vocabulario: si manana se anade una familia de tarea, aparece aqui sola.
+			    const pedirValorInalcanzable = (campo, nombre) => {
+			      const yaAbierto = document.getElementById('task-campo-obligatorio');
+			      if (yaAbierto) yaAbierto.remove();
+			      const opciones = [...campo.options].filter((o) => safeText(o.value));
+			      if (!opciones.length) return;
+
+			      const caja = document.createElement('div');
+			      caja.id = 'task-campo-obligatorio';
+			      caja.setAttribute('role', 'dialog');
+			      caja.setAttribute('aria-modal', 'true');
+			      caja.setAttribute('aria-label', 'Falta un dato para poder guardar');
+			      caja.innerHTML = ''
+			        + '<div class="tco-fondo"></div>'
+			        + '<div class="tco-caja">'
+			        + '  <div class="tco-tit"><span class="tco-punto"></span><strong>Falta un dato para poder guardar</strong></div>'
+			        + '  <p class="tco-sub">Esta tarea no tiene <b></b>. Elígelo y se guarda.</p>'
+			        + '  <div class="tco-ops"></div>'
+			        + '  <div class="tco-pie">'
+			        + '    <button type="button" class="tco-ok" disabled>Guardar tarea</button>'
+			        + '    <button type="button" class="tco-no">Cancelar</button>'
+			        + '  </div>'
+			        + '</div>';
+			      caja.querySelector('.tco-sub b').textContent = String(nombre || '').toLowerCase();
+
+			      const ops = caja.querySelector('.tco-ops');
+			      const ok = caja.querySelector('.tco-ok');
+			      let elegido = '';
+			      opciones.forEach((o) => {
+			        const b = document.createElement('button');
+			        b.type = 'button';
+			        b.className = 'tco-op';
+			        b.textContent = o.textContent;
+			        b.addEventListener('click', () => {
+			          elegido = o.value;
+			          ops.querySelectorAll('.tco-op').forEach((x) => x.classList.remove('is-sel'));
+			          b.classList.add('is-sel');
+			          ok.disabled = false;
+			        });
+			        ops.appendChild(b);
+			      });
+
+			      const cerrar = () => { try { caja.remove(); } catch (e) { /* ignore */ } };
+			      caja.querySelector('.tco-no').addEventListener('click', cerrar);
+			      caja.querySelector('.tco-fondo').addEventListener('click', cerrar);
+			      caja.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') cerrar(); });
+			      ok.addEventListener('click', () => {
+			        if (!elegido) return;
+			        campo.value = elegido;
+			        try { campo.dispatchEvent(new Event('change', { bubbles: true })); } catch (e) { /* ignore */ }
+			        cerrar();
+			        try { setStatus('Guardando la tarea...', false); } catch (e) { /* ignore */ }
+			        try { form.requestSubmit(); } catch (e) { try { form.submit(); } catch (e2) { /* ignore */ } }
+			      });
+			      document.body.appendChild(caja);
+			      try { (ops.querySelector('.tco-op') || ok).focus(); } catch (e) { /* ignore */ }
+			    };
 				    form.addEventListener('submit', async (event) => {
 			      // Segunda pasada: dejamos que el navegador envíe el POST (evita bucles con requestSubmit()).
 			      if (form.dataset.previewReady === '1') {

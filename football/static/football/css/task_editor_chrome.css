@@ -1133,3 +1133,35 @@ body.ed-chrome .edc-topbar a.edc-btn:focus-visible {
   background: rgba(244,180,0,0.18) !important;
   border-color: rgba(244,180,0,0.55) !important;
 }
+
+/* ---------------------------------------------------------------------------
+   Falta un dato obligatorio que NO SE VE (2026-08-08).
+
+   "Tipo de tarea" es `required` y vive en el panel lateral clasico, que esta
+   carcasa esconde: 448 de las 957 tareas no lo tienen y, sin esto, el navegador
+   bloqueaba el guardado por un campo que el usuario no podia ni ver ni rellenar.
+   Aqui se le pregunta directamente, con las opciones del propio desplegable.
+   --------------------------------------------------------------------------- */
+#task-campo-obligatorio { position: fixed; inset: 0; z-index: 9999;
+  display: flex; align-items: center; justify-content: center; }
+#task-campo-obligatorio .tco-fondo { position: absolute; inset: 0; background: rgba(4, 10, 8, 0.62); }
+#task-campo-obligatorio .tco-caja { position: relative; width: min(560px, calc(100vw - 2rem));
+  background: #0f1714; border: 1px solid rgba(255, 255, 255, 0.10); border-radius: 16px;
+  padding: 1.1rem 1.2rem; color: #e8ece9; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5); }
+#task-campo-obligatorio .tco-tit { display: flex; align-items: center; gap: 0.55rem; font-size: 0.95rem; }
+#task-campo-obligatorio .tco-punto { width: 9px; height: 9px; border-radius: 50%; background: #fbbf24; flex: none; }
+#task-campo-obligatorio .tco-sub { margin: 0.35rem 0 0.9rem; font-size: 0.84rem; color: #9fb0a7; line-height: 1.45; }
+#task-campo-obligatorio .tco-sub b { color: #e8ece9; }
+#task-campo-obligatorio .tco-ops { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1rem; }
+#task-campo-obligatorio .tco-op { padding: 0.4rem 0.8rem; border-radius: 999px; cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.16); background: rgba(255, 255, 255, 0.04);
+  color: #e8ece9; font-size: 0.82rem; font: inherit; font-size: 0.82rem; }
+#task-campo-obligatorio .tco-op:hover { background: rgba(255, 255, 255, 0.09); }
+#task-campo-obligatorio .tco-op.is-sel { border: 1.5px solid #86efac; background: rgba(134, 239, 172, 0.14);
+  color: #bbf7d0; font-weight: 600; }
+#task-campo-obligatorio .tco-pie { display: flex; gap: 0.5rem; align-items: center; }
+#task-campo-obligatorio .tco-ok { padding: 0.5rem 1.1rem; border-radius: 10px; border: none;
+  background: #f4b400; color: #1a1400; font-weight: 700; font-size: 0.86rem; cursor: pointer; }
+#task-campo-obligatorio .tco-ok[disabled] { opacity: 0.45; cursor: not-allowed; }
+#task-campo-obligatorio .tco-no { padding: 0.5rem 1rem; border-radius: 10px; cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.18); background: transparent; color: #c9d5ce; font-size: 0.86rem; }
