@@ -816,6 +816,22 @@
       </header>
       {% include 'football/includes/_zone_chips.html' with chips=zone_chips %}
 
+      {% comment %}Estas tres pestañas EXISTÍAN -la vista lleva desde siempre `tab_link_stats`,
+      `tab_link_manage` y `tab_link_inactive`, y la plantilla tiene sus estilos-, pero nadie las
+      pintaba: a "Gestionar" y a "Bajas" sólo se llegaba escribiendo `?tab=manage` a mano. Ahí
+      viven "Sale del club", "Traspaso", "Mover a…" y el botón de Reactivar, o sea que dar de
+      baja a un jugador y recuperarlo eran funciones construidas y sin puerta.{% endcomment %}
+      <div class="tabs" id="roster-tabs" role="tablist" aria-label="Secciones de la plantilla">
+        <a class="tab {% if active_tab == 'stats' or not active_tab %}is-active{% endif %}"
+           href="{{ tab_link_stats }}"{% if active_tab == 'stats' or not active_tab %} aria-current="page"{% endif %}>Plantilla</a>
+        {% if can_manage_roster %}
+        <a class="tab {% if active_tab == 'manage' %}is-active{% endif %}"
+           href="{{ tab_link_manage }}"{% if active_tab == 'manage' %} aria-current="page"{% endif %}>Gestionar</a>
+        <a class="tab {% if active_tab == 'inactive' %}is-active{% endif %}"
+           href="{{ tab_link_inactive }}"{% if active_tab == 'inactive' %} aria-current="page"{% endif %}>Bajas</a>
+        {% endif %}
+      </div>
+
       <section class="panel">
         {% if message %}<p class="alert ok">{{ message }}</p>{% endif %}
         {% if error %}<p class="alert err">{{ error }}</p>{% endif %}

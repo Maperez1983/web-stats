@@ -7166,6 +7166,31 @@ class SeasonHistoryServicesTests(TestCase):
         self.assertEqual([row.player for row in rows], [self.player])
         self.assertNotIn(other_player, [row.player for row in rows])
 
+    def test_plantilla_pinta_sus_pestanas_de_gestion_y_de_bajas(self):
+        """Existían y no tenían puerta.
+
+        La vista lleva desde siempre `tab_link_manage` y `tab_link_inactive`, y la plantilla
+        tiene sus estilos, pero nadie los pintaba: a "Gestionar" -donde viven "Sale del club",
+        "Traspaso" y "Mover a…"- y a "Bajas" -donde está Reactivar- sólo se llegaba escribiendo
+        `?tab=manage` a mano.
+        """
+        import re as _re
+
+        for tab, activa in (('', 'Plantilla'), ('stats', 'Plantilla'),
+                            ('manage', 'Gestionar'), ('inactive', 'Bajas')):
+            with self.subTest(pestana=tab or '(por defecto)'):
+                html = self.client.get(
+                    reverse('coach-roster'), ({'tab': tab} if tab else {})
+                ).content.decode('utf-8', 'replace')
+                i = html.index('id="roster-tabs"')
+                fila = html[i:i + 1400]
+                self.assertEqual(
+                    _re.findall(r'>([^<>]{3,20})</a>', fila)[:3],
+                    ['Plantilla', 'Gestionar', 'Bajas'],
+                )
+                marcada = _re.findall(r'is-active[^>]*>([^<>]{3,20})</a>', fila)[:1]
+                self.assertEqual(marcada, [activa], f'{tab or "por defecto"} deberia marcar {activa}')
+
     def test_dar_de_baja_desde_la_ficha_cuando_deja_el_futbol(self):
         """En fútbol base el caso MÁS común es que el niño lo deja, sin fichar por nadie.
 
