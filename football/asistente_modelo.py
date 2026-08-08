@@ -109,6 +109,11 @@ def clasificar(frase: str, *, nombres=None):
         headers={
             "Content-Type": "application/json",
             "Authorization": f"Bearer {str(os.getenv('GROQ_API_KEY') or '').strip()}",
+            # Sin esto Groq devuelve 403 con el codigo 1010 de Cloudflare: `urllib` se presenta
+            # como "Python-urllib/3.11" y su proteccion antibots lo rechaza. No es la clave ni
+            # el modelo -costo un despliegue con traza averiguarlo-.
+            "User-Agent": "SegundaJugada/1.0 (+https://app.segundajugada.es)",
+            "Accept": "application/json",
         },
         method="POST",
     )
