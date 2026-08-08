@@ -462,6 +462,135 @@ def responder_clasificacion(frase, equipo):
     }
 
 
+def es_pregunta_convocatoria(frase):
+    q = _sin_tildes(frase)
+    return any(p in q for p in ("convocado", "convocados", "convocatoria", "quien viaja",
+                                "quien va convocado", "a quien llevo", "quien se queda fuera"))
+
+
+def responder_convocatoria(frase, equipo):
+    """La convocatoria vigente. Se pide con `get_current_convocation_record`, que es la misma
+    que lee la pantalla: hay varias por equipo y sólo una lleva `is_current`."""
+    from football.models import Player
+    from football.query_helpers import get_current_convocation_record
+
+    registro = get_current_convocation_record(equipo)
+    if registro is None:
+        return {"message": "No tienes ninguna convocatoria hecha todavía."
+                           "\n\nHacerla: /coach/partidos/", "highlights": []}
+    convocados = list(registro.players.all().order_by("name"))
+    if not convocados:
+        return {"message": "La convocatoria está creada pero vacía."
+                           "\n\nVer: /coach/partidos/", "highlights": []}
+    rival = str(getattr(registro, "opponent_name", "") or "").strip()
+    fecha = ""
+    try:
+        fecha = registro.match_date.strftime("%d/%m") if registro.match_date else ""
+    except Exception:
+        fecha = ""
+    cabecera = f"Convocados ({len(convocados)})"
+    if rival:
+        cabecera += f" contra {rival[:30]}"
+    if fecha:
+        cabecera += f", el {fecha}"
+
+    # Quién se queda fuera es la mitad de la pregunta, y es la mitad que cuesta mirar.
+    dentro = {c.id for c in convocados}
+    fuera = [p.name for p in Player.objects.filter(team=equipo, is_active=True).order_by("name")
+             if p.id not in dentro]
+    texto = cabecera + ":\n" + "\n".join(f"· {c.name}" for c in convocados)
+    if fuera:
+        texto += f"\n\nSe quedan fuera ({len(fuera)}): " + ", ".join(fuera[:12])
+        if len(fuera) > 12:
+            texto += f" y {len(fuera) - 12} más"
+    return {"message": texto + "\n\nVer: /coach/partidos/",
+            "highlights": [f"{len(convocados)} convocados"]}
+
+
+def es_pregunta_sin_evaluar(frase):
+    q = _sin_tildes(frase)
+    if "evalua" not in q and "valorac" not in q and "valorad" not in q:
+        return False
+    return any(p in q for p in ("sin evaluar", "no evaluado", "no he evaluado", "falta evaluar",
+                                "quedan por evaluar", "sin valorar", "sin valoracion",
+                                "quien llevo sin", "cuantas evaluaciones", "cuantos he evaluado"))
+
+
+def responder_sin_evaluar(frase, equipo):
+    from football.models import Player, PlayerEvaluation
+
+    evaluados = set(
+        PlayerEvaluation.objects.filter(team=equipo).values_list("player_id", flat=True)
+    )
+    plantilla = list(Player.objects.filter(team=equipo, is_active=True).order_by("name"))
+    faltan = [p.name for p in plantilla if p.id not in evaluados]
+    if not faltan:
+        return {"message": f"Tienes evaluados a los {len(plantilla)} jugadores de la plantilla.",
+                "highlights": ["todos evaluados"]}
+    return {"message": f"Sin evaluar ({len(faltan)} de {len(plantilla)}):\n"
+                       + "\n".join(f"· {n}" for n in faltan[:15])
+                       + (f"\n… y {len(faltan) - 15} más" if len(faltan) > 15 else "")
+                       + "\n\nEvaluar: /coach/plantilla/",
+            "highlights": [f"{len(faltan)} sin evaluar"]}
+
+
+def es_pregunta_rival(frase):
+    q = _sin_tildes(frase)
+    return any(p in q for p in ("del rival", "el rival", "proximo rival", "sobre el rival",
+                                "que tal el rival", "como es el rival", "quien es el rival"))
+
+
+def responder_rival(frase, equipo):
+    """Lo que se sabe del próximo rival, y sólo lo que se sabe.
+
+    Aquí no se estima nada: si no tenemos su plantilla importada se dice, en vez de rellenar
+    el hueco con una impresión. Un informe de rival inventado es peor que no tener informe,
+    porque se planifica con él.
+    """
+    from django.utils import timezone
+
+    from football.models import TeamStanding
+
+    hoy = timezone.localdate()
+    prox = (_partidos_del_equipo(equipo).filter(date__gte=hoy)
+            .order_by("date", "kickoff_time", "id").first())
+    if prox is None:
+        return {"message": "No tienes ningún partido por delante en el calendario.",
+                "highlights": []}
+    rival_equipo = prox.away_team if _es_nuestro(equipo, prox.home_team) else prox.home_team
+    nombre = _rival_de(prox, equipo)
+    lineas = [f"{nombre} · {_casa_o_fuera(prox, equipo)} · {dia_corto(prox.date)}"]
+
+    fila = TeamStanding.objects.filter(team=rival_equipo).order_by("-last_updated").first()
+    if fila is not None:
+        lineas.append(f"Va {int(fila.position or 0)}º con {int(fila.points or 0)} puntos "
+                      f"({int(getattr(fila, 'goals_for', 0) or 0)} a favor, "
+                      f"{int(getattr(fila, 'goals_against', 0) or 0)} en contra).")
+
+    # Cómo nos ha ido contra ellos, que es el dato que él pesa de verdad.
+    historial = []
+    for m in _partidos_del_equipo(equipo).filter(date__lt=hoy).order_by("-date")[:40]:
+        otro = m.away_team if _es_nuestro(equipo, m.home_team) else m.home_team
+        if getattr(otro, "id", None) != getattr(rival_equipo, "id", None):
+            continue
+        casa = _es_nuestro(equipo, m.home_team)
+        nuestros, suyos = (m.home_score, m.away_score) if casa else (m.away_score, m.home_score)
+        if nuestros is None or suyos is None:
+            continue
+        historial.append(f"{m.date.strftime('%d/%m')}: {nuestros}-{suyos}")
+    if historial:
+        lineas.append("Ya os habéis visto — " + " · ".join(historial[:3]))
+
+    from football.models import RivalPlayer
+
+    plantilla = RivalPlayer.objects.filter(team=rival_equipo).count()
+    lineas.append(f"Tienes su plantilla importada ({plantilla} jugadores)."
+                  if plantilla else
+                  "No tienes su plantilla importada, así que no hay informe de sus jugadores.")
+    return {"message": "\n".join(lineas) + "\n\nVer: /coach/analisis/",
+            "highlights": [nombre[:30]]}
+
+
 def es_pregunta_cuantas_tareas(frase):
     q = _sin_tildes(frase)
     return (any(p in q for p in ("cuantas", "cuantos")) 
@@ -749,6 +878,10 @@ CONSULTAS = (
     (es_pregunta_cumpleanos, responder_cumpleanos),
     (es_pregunta_sin_ficha, responder_sin_ficha),
     (es_pregunta_jugador, responder_jugador),
+    (es_pregunta_convocatoria, responder_convocatoria),
+    (es_pregunta_sin_evaluar, responder_sin_evaluar),
+    # El rival ANTES que los partidos: «cómo es el rival» no pide la fecha, pide el informe.
+    (es_pregunta_rival, responder_rival),
     # El ULTIMO antes que el PROXIMO: "como quedo el ultimo partido" lleva la palabra
     # "partido" y la de proximo la miraria tambien.
     (es_pregunta_ultimo_partido, responder_ultimo_partido),
