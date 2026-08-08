@@ -61,7 +61,12 @@ _VERBOS_IR = ("llevame", "llevame a", "ir a", "abre", "abreme", "vete a", "ve a"
 # no saber hacerlo.
 _PALABRAS_ORDEN = ("marca", "marcar", "anota", "anotar", "apunta", "apuntar", "pon", "poner",
                    "registra", "registrar", "quita", "quitar", "borra", "borrar", "cambia",
-                   "cambiar", "convoca", "convocar", "da de baja", "da de alta")
+                   "cambiar", "convoca", "convocar", "da de baja", "da de alta",
+                   # Las de la pizarra tambien son ordenes. Sin "mete" aqui, "mete 5 de la
+                   # PLANTILLA con equipacion local" caia en el enrutador de datos por la
+                   # palabra "plantilla" y te contestaba cuantos jugadores tienes.
+                   "mete", "meter", "coloca", "colocar", "saca", "sacar", "anade", "añade",
+                   "agrega", "agregar", "dibuja", "dibujar")
 _VERBOS_BUSCAR = ("busca", "buscar", "buscame", "encuentra", "encuentrame", "localiza")
 _VERBOS_SUGERIR = ("sugiere", "sugiereme", "recomienda", "recomiendame", "proponme", "propon",
                    "dame tareas", "dame ejercicios", "que tareas", "que ejercicios")
