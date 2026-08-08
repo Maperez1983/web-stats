@@ -47,10 +47,41 @@
         color: var(--ink);
         background: linear-gradient(180deg, #020916 0%, #081b35 65%, #081329 100%) !important;
       }
-      :root[data-theme="light"] body.prod-commercial.session-task-detail-page,
+      /* MODO CLARO. Esta regla forzaba el fondo OSCURO tambien en claro, pero los paneles de
+         dentro si se volvian blancos con el tema: fondo negro, tarjeta blanca y letra blanca
+         encima. Las pestanas ("Presentacion", "Pizarra", "1 · Que se hace"...), el aviso verde
+         y los botones secundarios quedaban en 1.1 de contraste, o sea invisibles.
+         Ahora la ficha se pasa al claro de verdad: sus colores locales (--ink, --panel, --line,
+         --ui-*) se redefinen y el fondo deja de imponerse. */
+      :root[data-theme="light"] body.prod-commercial.session-task-detail-page {
+        --ink: #0f172a;
+        --bg: #f4f7fb;
+        --panel: #ffffff;
+        --line: rgba(15, 23, 42, 0.12);
+        --ui-bg: #f4f7fb;
+        --ui-surface: #ffffff;
+        --ui-surface-strong: #ffffff;
+        --ui-text: #0f172a;
+        --ui-text-muted: #475569;
+        --ui-border: rgba(15, 23, 42, 0.14);
+        --ui-button-bg: rgba(15, 23, 42, 0.05);
+        --ui-button-text: #0f172a;
+        --ficha-acento: #0369a1;
+        --ficha-pastilla: rgba(15, 23, 42, 0.04);
+        --ficha-pastilla-borde: rgba(15, 23, 42, 0.16);
+        --ficha-seccion: #f8fafc;
+        color: var(--ink);
+        background: linear-gradient(180deg, #f7f9fc 0%, #eef3f9 100%) !important;
+      }
       :root[data-theme="hc"] body.prod-commercial.session-task-detail-page {
         color: var(--ink);
-        background: linear-gradient(180deg, #020916 0%, #081b35 65%, #081329 100%) !important;
+        background: #000000 !important;
+      }
+      body.session-task-detail-page {
+        --ficha-acento: rgba(125, 211, 252, 0.94);
+        --ficha-pastilla: rgba(255, 255, 255, 0.06);
+        --ficha-pastilla-borde: rgba(255, 255, 255, 0.18);
+        --ficha-seccion: rgba(3, 12, 25, 0.52);
       }
       body.session-task-detail-page.is-presentation {
         --ink: #122033;
@@ -182,7 +213,7 @@
         opacity: 1 !important;
       }
       .top-kicker {
-        color: rgba(125, 211, 252, 0.94);
+        color: var(--ficha-acento);
         font-size: 0.72rem;
         font-weight: 950;
         letter-spacing: 0.18em;
@@ -231,7 +262,7 @@
         border-radius: 999px;
         padding: 0.5rem 0.9rem;
         color: var(--ink);
-        background: rgba(255, 255, 255, 0.06);
+        background: var(--ficha-pastilla);
         font-weight: 700;
         letter-spacing: 0.05em;
         text-transform: uppercase;
@@ -353,8 +384,8 @@
         flex-wrap: wrap;
       }
       .task-detail-tab {
-        border: 1px solid rgba(255, 255, 255, 0.16);
-        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--ficha-pastilla-borde);
+        background: var(--ficha-pastilla);
       }
       .task-detail-tab.is-active {
         background: rgba(56, 189, 248, 0.16);
@@ -388,8 +419,8 @@
         margin-bottom: 0.7rem;
       }
       .task-edit-tab {
-        border: 1px solid rgba(255, 255, 255, 0.18);
-        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid var(--ficha-pastilla-borde);
+        background: var(--ficha-pastilla);
       }
       body.session-task-detail-page.is-presentation .task-edit-tab {
         border-color: rgba(18, 32, 51, 0.16);
@@ -418,8 +449,8 @@
         margin: 0.75rem 0 0.95rem;
       }
       .task-settings-tab {
-        border: 1px solid rgba(255, 255, 255, 0.18);
-        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid var(--ficha-pastilla-borde);
+        background: var(--ficha-pastilla);
         border-radius: 999px;
         padding: 0.45rem 0.78rem;
         color: var(--ink);
@@ -431,7 +462,7 @@
       .task-settings-tab.is-active {
         border-color: rgba(56, 189, 248, 0.58);
         background: rgba(56, 189, 248, 0.14);
-        color: #fefefe;
+        color: var(--ink);
       }
       body.session-task-detail-page.is-presentation .task-settings-tab {
         border-color: rgba(18, 32, 51, 0.16);
@@ -955,10 +986,10 @@
         gap: 0.6rem;
       }
       .editor-section {
-        border: 1px solid rgba(255, 255, 255, 0.15);
+        border: 1px solid var(--ficha-pastilla-borde);
         border-radius: 14px;
         padding: 0.82rem 0.82rem 0.9rem;
-        background: rgba(3, 12, 25, 0.52);
+        background: var(--ficha-seccion);
         margin-bottom: 0.75rem;
       }
       .editor-section-head {
