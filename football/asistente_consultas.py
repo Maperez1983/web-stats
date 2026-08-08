@@ -401,6 +401,32 @@ def responder_ultimo_partido(frase, equipo):
     }
 
 
+# --- Video -----------------------------------------------------------------------------------
+
+def es_pregunta_videos(frase):
+    q = _sin_tildes(frase)
+    return (any(p in q for p in ("video", "videos", "clip", "clips", "grabacion", "grabaciones"))
+            and any(p in q for p in ("cuantos", "cuantas", "que ", "tengo", "hay", "lista")))
+
+
+def responder_videos(frase, equipo):
+    from football.models import AnalystVideoFolder, RivalVideo, VideoClip
+
+    videos = RivalVideo.objects.filter(team=equipo).count()
+    clips = VideoClip.objects.filter(team=equipo).count()
+    carpetas = list(
+        AnalystVideoFolder.objects.filter(team=equipo).order_by("-created_at")[:6]
+    )
+    if not videos and not clips and not carpetas:
+        return {"message": "Todavía no tienes vídeos.\n\nSubirlos: /coach/analisis/",
+                "highlights": []}
+    lineas = [f"Tienes {videos} vídeo{'s' if videos != 1 else ''} y {clips} clip{'s' if clips != 1 else ''}."]
+    if carpetas:
+        lineas.append("Carpetas: " + " · ".join(str(c.name or "")[:28] for c in carpetas))
+    return {"message": "\n".join(lineas) + "\n\nVer: /coach/analisis/",
+            "highlights": [f"{videos} vídeos", f"{clips} clips"]}
+
+
 CONSULTAS = (
     (es_pregunta_asistencia, responder_asistencia),
     (es_pregunta_tareas_de_sesion, responder_tareas_de_sesion),
@@ -410,6 +436,7 @@ CONSULTAS = (
     # "partido" y la de proximo la miraria tambien.
     (es_pregunta_ultimo_partido, responder_ultimo_partido),
     (es_pregunta_proximo_partido, responder_proximo_partido),
+    (es_pregunta_videos, responder_videos),
 )
 
 
