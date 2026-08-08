@@ -2872,8 +2872,32 @@
         {% endif %}
         {% if not is_player_readonly %}
         <details class="fm-manage" style="margin:0 0 1rem;">
-          <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.65rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:var(--prod-text);background:rgba(2,6,23,0.35);list-style:none;">⚙ Estado en el club · pasar a ojeado / traspaso</summary>
+          <summary style="cursor:pointer;font-weight:800;font-size:.88rem;padding:.65rem .85rem;border:1px solid rgba(148,163,184,0.28);border-radius:12px;color:var(--prod-text);background:rgba(2,6,23,0.35);list-style:none;">⚙ Estado en el club · baja, traspaso u ojeado</summary>
           <div style="padding:.95rem .15rem .15rem;">
+        {% comment %}DEJA EL FÚTBOL. En fútbol base es el caso MÁS común -el niño lo deja y ya- y
+        era el único que no se podía contar: "traspaso" obliga a inventarse un club de destino y
+        "pasar a ojeado" lo mete en la bandeja de fichajes. La baja limpia existía en la pantalla
+        de Plantilla, pero esa pestaña no tiene enlace en ninguna plantilla: se llegaba sólo
+        escribiendo la URL a mano. Va la primera porque es la que más se usa.{% endcomment %}
+        <div style="margin:0 0 1rem;padding:0.7rem 0.85rem;border:1px solid rgba(148,163,184,0.35);border-radius:12px;">
+          <div style="font-weight:800;font-size:0.8rem;letter-spacing:0.04em;text-transform:uppercase;color:var(--prod-muted,rgba(15,23,42,0.6));margin-bottom:0.5rem;">Deja el equipo</div>
+          {% if not player.is_active and not player.transferred_to_club and not player_in_scouting %}
+          <p style="margin:0 0 0.5rem;">Está <strong>fuera de la plantilla</strong>. Su ficha, sus estadísticas y su historial siguen intactos.</p>
+          <form method="post" style="margin:0;" onsubmit="return confirm('¿Devolverlo a la plantilla activa?');">
+            {% csrf_token %}
+            <input type="hidden" name="form_action" value="volver_a_plantilla" />
+            <button class="btn" type="submit">↪ Devolver a plantilla</button>
+          </form>
+          {% else %}
+          <p style="margin:0 0 0.5rem;font-size:0.74rem;" class="subtle">Lo deja y no ficha por nadie: lo normal en fútbol base. Sale de la plantilla y de las convocatorias, pero <strong>no se borra nada</strong> — ficha, estadísticas, lesiones e historial se conservan, y puede volver cuando quiera.</p>
+          <form method="post" style="margin:0;display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;" onsubmit="return confirm('¿Darlo de baja de la plantilla? No se borra nada: su ficha y su historial se conservan y puedes devolverlo cuando quieras.');">
+            {% csrf_token %}
+            <input type="hidden" name="form_action" value="deja_el_equipo" />
+            <input type="text" name="motivo_baja" placeholder="Motivo (opcional: lo deja, estudios, lesión…)" aria-label="Motivo de la baja" style="min-width:15rem;" />
+            <button class="btn alt" type="submit">Dar de baja</button>
+          </form>
+          {% endif %}
+        </div>
         {% if player_in_scouting %}
         <form method="post" style="margin:0 0 1rem;" onsubmit="return confirm('¿Devolver este jugador a la plantilla activa? Su ficha de ojeo se marcará como fichado.');">
           {% csrf_token %}

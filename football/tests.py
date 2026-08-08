@@ -7166,6 +7166,34 @@ class SeasonHistoryServicesTests(TestCase):
         self.assertEqual([row.player for row in rows], [self.player])
         self.assertNotIn(other_player, [row.player for row in rows])
 
+    def test_dar_de_baja_desde_la_ficha_cuando_deja_el_futbol(self):
+        """En fútbol base el caso MÁS común es que el niño lo deja, sin fichar por nadie.
+
+        Y era el único que no se podía contar desde la ficha: "traspaso" obliga a inventarse un
+        club de destino y "pasar a ojeado" lo mete en la bandeja de fichajes. La baja limpia
+        existía en Plantilla, pero esa pestaña no tiene enlace en ninguna plantilla.
+        """
+        jugador = Player.objects.create(team=self.team, name='Niño que lo deja', is_active=True)
+
+        r = self.client.post(
+            reverse('player-detail', args=[jugador.id]),
+            {'form_action': 'deja_el_equipo', 'motivo_baja': 'Lo deja por estudios'},
+        )
+        self.assertEqual(r.status_code, 302)
+        jugador.refresh_from_db()
+        self.assertFalse(jugador.is_active, 'sale de la plantilla')
+        self.assertIsNone(jugador.transferred_to_club, 'no ficha por nadie: sin club destino')
+        self.assertTrue(Player.objects.filter(id=jugador.id).exists(), 'no se borra la ficha')
+
+        # Y vuelve, que en fútbol base vuelven a mitad de temporada.
+        r = self.client.post(
+            reverse('player-detail', args=[jugador.id]),
+            {'form_action': 'volver_a_plantilla'},
+        )
+        self.assertEqual(r.status_code, 302)
+        jugador.refresh_from_db()
+        self.assertTrue(jugador.is_active, 'vuelve a la plantilla')
+
     def test_roster_deactivate_removes_player_from_active_club_pool_but_keeps_history(self):
         from football.season_history_services import ensure_player_season_membership, ensure_workspace_player
 
