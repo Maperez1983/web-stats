@@ -16,15 +16,14 @@ TASK_PITCH_FORMAT_CHOICES = [
     ('8v8', '8v8'),
     ('7v7', '7v7'),
     ('5v5', '5v5'),
+    # El club es mayoria de futbol base: el 4v4 y el 3v3 son el formato REAL del prebenjamin,
+    # y hasta ahora habia que meterlos en 5v5.
+    ('4v4', '4v4'),
+    ('3v3', '3v3'),
+    ('quarter', 'Cuarto de campo'),
+    ('corridor', 'Carril / pasillo'),
     ('abp', 'ABP'),
     ('specific_zone', 'Zona específica'),
-]
-TASK_GAME_PHASE_CHOICES = [
-    ('organization_attack', 'Organización ofensiva'),
-    ('organization_defense', 'Organización defensiva'),
-    ('offensive_transition', 'Transición ofensiva'),
-    ('defensive_transition', 'Transición defensiva'),
-    ('set_pieces', 'ABP'),
 ]
 TASK_METHODOLOGY_CHOICES = [
     ('analytical', 'Analítica'),
@@ -41,14 +40,19 @@ TASK_COMPLEXITY_CHOICES = [
 TASK_STRATEGY_CHOICES = [
     ('abp', 'Acciones a Balón Parado'),
     ('combined', 'Acciones Combinadas'),
+    # Cuatro que ya escribia a mano en el titulo de sus tareas porque no estaban en la lista.
+    ('activation', 'Activación / calentamiento'),
     ('circuit', 'Circuito'),
     ('conservation', 'Conservación'),
+    ('gk_specific', 'Específico de portero'),
     ('adapted', 'Juego Adaptado al Fútbol'),
     ('positional', 'Juego de Posición'),
     ('positional_specific', 'Juego de Posición Específico'),
     ('waves', 'Oleadas'),
     ('matches', 'Partidos'),
     ('possession', 'Posesión'),
+    ('preventive', 'Preventivo / readaptación'),
+    ('rondo', 'Rondo'),
     ('passing_wheel', 'Rueda de Pases'),
     ('reduced_games', 'Situaciones Reducidas'),
     ('lines_work', 'Trabajo de Líneas'),
@@ -56,7 +60,9 @@ TASK_STRATEGY_CHOICES = [
 TASK_COORDINATION_SKILLS_CHOICES = [
     ('offball', 'Actuación por Desmarcación'),
     ('start_stop', 'Arrancar/Frenar'),
+    ('heading', 'Cabeceo'),
     ('direction_change', 'Cambiar de Dirección'),
+    ('cross', 'Centro'),
     ('carry', 'Conducción'),
     ('control', 'Control'),
     ('clearances', 'Despejes'),
@@ -64,24 +70,37 @@ TASK_COORDINATION_SKILLS_CHOICES = [
     ('shots', 'Disparos'),
     ('tackles', 'Entrada'),
     ('balance', 'Equilibrarse'),
+    ('feint', 'Finta'),
     ('turns', 'Giros'),
     ('interceptions', 'Intercepción'),
     ('pass', 'Pase'),
     ('protection', 'Protección'),
     ('dribble', 'Regate'),
     ('jumps', 'Saltos'),
+    # Portero: el club tiene catalogo propio de valoracion de porteros y aqui no habia forma
+    # de decir que entrena una tarea suya.
+    ('gk_save', 'Portero · Parada'),
+    ('gk_catch', 'Portero · Blocaje'),
+    ('gk_exit', 'Portero · Salida'),
+    ('gk_punch', 'Portero · Despeje de puños'),
+    ('gk_distribution', 'Portero · Saque y distribución'),
 ]
 TASK_TACTICAL_INTENT_CHOICES = [
     ('1v1', '1 vs 1'),
     ('2v1', '2 vs 1'),
     ('2v2', '2 vs 2'),
+    ('3v2', '3 vs 2'),
     ('3v3', '3 vs 3'),
+    ('4v3', '4 vs 3'),
     ('4v4', '4 vs 4'),
+    ('5v5', '5 vs 5'),
     ('abp_def', 'ABP Defensiva'),
     ('abp_att', 'ABP Ofensiva'),
+    ('compact', 'Achique de espacios'),
     ('width', 'Amplitud'),
     ('supports', 'Apoyos'),
     ('organized_attack', 'Ataque Organizado'),
+    ('shift', 'Basculación'),
     ('cover', 'Cobertura'),
     ('keep', 'Conservar'),
     ('counter', 'Contraataque'),
@@ -110,11 +129,13 @@ TASK_TACTICAL_INTENT_CHOICES = [
     ('recover', 'Recuperar'),
     ('restart', 'Reinicio de Juego'),
     ('retreat', 'Replegar'),
+    ('press_escape', 'Salida de presión'),
     ('second_attacker', 'Segundo Atacante'),
     ('second_defender', 'Segundo Defensor'),
     ('delay', 'Temporizar'),
     ('third_attacker', 'Tercer Atacante'),
     ('third_defender', 'Tercer Defensor'),
+    ('cover_watch', 'Vigilancias defensivas'),
 ]
 TASK_DYNAMICS_CHOICES = [
     ('adm', 'ADM'),
@@ -125,8 +146,12 @@ TASK_DYNAMICS_CHOICES = [
     ('recovery', 'Recuperación'),
     ('endurance', 'Resistencia'),
     ('speed', 'Velocidad'),
+    ('tension', 'Tensión'),
+    ('duration', 'Duración'),
 ]
 TASK_STRUCTURE_CHOICES = [
+    ('individual', 'Individual'),
+    ('group', 'Grupal'),
     ('complete', 'Estructura Completa'),
     ('intersectorial', 'Intersectorial'),
     ('sectorial', 'Sectorial'),
@@ -143,6 +168,13 @@ TASK_USEFULNESS_CHOICES = [
     ('4', '4'),
     ('5', '5 · Top'),
 ]
+# Como salio la tarea DESPUES de entrenarla. Se rellena al cerrar la sesion, no al crearla:
+# es lo unico que convierte una biblioteca de 700 tareas en una biblioteca con criterio.
+TASK_EXECUTION_RATING_CHOICES = [
+    ('ok', 'Salió bien'),
+    ('adjust', 'Ajustar'),
+    ('drop', 'No repetir'),
+]
 TASK_CONSTRAINT_CHOICES = [
     ('two_touches', '2 toques'),
     ('one_touch_zone', '1 toque zona final'),
@@ -151,6 +183,14 @@ TASK_CONSTRAINT_CHOICES = [
     ('press_6_seconds', 'Presionar 6 segundos tras pérdida'),
     ('bonus_recovery_high', 'Bonus por recuperación alta'),
     ('max_3_passes_before_finish', 'Máx. 3 pases antes de finalizar'),
+    ('free_touch', 'Toque libre'),
+    ('min_passes', 'Mínimo de pases antes de finalizar'),
+    ('jokers', 'Comodines'),
+    ('keeper_support', 'Portero como apoyo'),
+    ('forbidden_zone', 'Zona prohibida'),
+    ('first_time_finish', 'Gol de primera'),
+    ('man_marking', 'Marcaje individual'),
+    ('double_goal_high_recovery', 'Gol doble tras recuperación alta'),
 ]
 
 
@@ -230,3 +270,10 @@ def derive_task_columns(tactical_layout):
         "content_domain": _task_col_str(meta.get("content_domain"), 30),
         "age_group": _task_col_str(meta.get("age_group"), 80),
     }
+
+
+# "Fase del juego" era un vocabulario PARALELO al de "Momento del juego", con otras claves para
+# lo mismo (`organization_attack` frente a `offensive_organization`). Dos vocabularios acaban
+# partiendo la biblioteca en dos, asi que se queda uno solo. El nombre sobrevive para el codigo
+# que lo importa, pero apunta al canonico.
+TASK_GAME_PHASE_CHOICES = GAME_MOMENT_CHOICES

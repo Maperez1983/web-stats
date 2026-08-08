@@ -1660,14 +1660,19 @@
           <form method="post" class="grid editor-core" id="task-detail-form">
             {% csrf_token %}
             <input type="hidden" name="detail_action" value="update_task_detail" />
+            {% comment %}Las pestañas siguen el orden en que se monta una tarea: qué se hace,
+            cómo se monta, cómo se adapta, cómo se encuentra luego. La carga va la última y
+            señalada como avanzada: sus trece campos estaban a cero en las 705 tareas.{% endcomment %}
             <div class="task-settings-tab-bar" role="tablist" aria-label="Secciones de configuración">
-              <button type="button" class="button task-settings-tab is-active" data-task-settings-tab="sheet" aria-selected="true">Campo y jugadores</button>
-              <button type="button" class="button task-settings-tab" data-task-settings-tab="content" aria-selected="false">Contenido</button>
-              <button type="button" class="button task-settings-tab" data-task-settings-tab="methodology" aria-selected="false">Metodología</button>
-              <button type="button" class="button task-settings-tab" data-task-settings-tab="load" aria-selected="false">Carga</button>
+              <button type="button" class="button task-settings-tab is-active" data-task-settings-tab="content" aria-selected="true">1 · Qué se hace</button>
+              <button type="button" class="button task-settings-tab" data-task-settings-tab="sheet" aria-selected="false">2 · Cómo se monta</button>
+              <button type="button" class="button task-settings-tab" data-task-settings-tab="adapt" aria-selected="false">3 · Cómo se adapta</button>
+              <button type="button" class="button task-settings-tab" data-task-settings-tab="methodology" aria-selected="false">4 · Clasificación</button>
+              <button type="button" class="button task-settings-tab" data-task-settings-tab="outcome" aria-selected="false">Cómo salió</button>
+              <button type="button" class="button task-settings-tab" data-task-settings-tab="load" aria-selected="false">Carga · avanzado</button>
             </div>
 
-            <section class="task-settings-pane is-active" data-task-settings-pane="sheet">
+            <section class="task-settings-pane" data-task-settings-pane="sheet">
               <div class="editor-section">
                 <div class="editor-section-head">
                   <h3>Campo y jugadores</h3>
@@ -1701,15 +1706,26 @@
                       {% endfor %}
                     </select>
                   </label>
-                  <label class="full">
+                  <label>
                     Jugadores / organización
-                    <input type="text" name="task_sheet_players" value="{{ task_sheet.players }}" placeholder="Ej: 12 + 2 porteros · 3 equipos de 4" />
+                    <input type="text" name="task_sheet_players" value="{{ task_sheet.players }}" placeholder="Ej: 12 · 3 equipos de 4" />
+                  </label>
+                  {% comment %}Los porteros iban dentro del texto de "jugadores", así que no se
+                  podían contar ni filtrar. Y el vídeo no existía: explicar un ejercicio con un
+                  enlace es más rápido que con un párrafo.{% endcomment %}
+                  <label>
+                    Porteros
+                    <input type="text" name="task_keepers" value="{{ task_meta.keepers }}" placeholder="Ej: 2" />
+                  </label>
+                  <label class="full">
+                    Vídeo de referencia
+                    <input type="url" name="task_video_url" value="{{ task_meta.video_url }}" placeholder="https://…" />
                   </label>
                 </div>
               </div>
             </section>
 
-            <section class="task-settings-pane" data-task-settings-pane="content">
+            <section class="task-settings-pane is-active" data-task-settings-pane="content">
               <div class="editor-section">
                 <div class="editor-section-head">
                   <h3>Contenido descriptivo</h3>
@@ -1744,6 +1760,17 @@
                   <span class="meta">Todo lo que luego se refleja en la ficha club/UEFA.</span>
                 </div>
                 <div class="editor-grid">
+                  {% comment %}Metodología llevaba definida desde siempre sin aparecer en ninguna
+                  pantalla: el vocabulario existía y no había dónde elegirlo.{% endcomment %}
+                  <label>
+                    Metodología
+                    <select name="task_methodology">
+                      <option value="">-</option>
+                      {% for value, label in task_methodology_choices %}
+                      <option value="{{ value }}" {% if task_meta.methodology == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
                   <label>
                     Tipología / Estrategia
                     <select name="task_strategy">
@@ -1867,21 +1894,84 @@
                     Trabajo / descanso
                     <input type="text" name="task_work_rest" value="{{ task_meta.work_rest }}" />
                   </label>
+                </div>
+              </div>
+            </section>
+
+            <section class="task-settings-pane" data-task-settings-pane="adapt">
+              <div class="editor-section">
+                <div class="editor-section-head">
+                  <h3>Cómo se adapta</h3>
+                  <span class="meta">Lo que cambias cuando sale mal, o cuando sale demasiado fácil.</span>
+                </div>
+                <div class="editor-grid">
+                  <label class="full">
+                    Progresión
+                    <textarea name="task_progression" placeholder="Si va bien, se complica así…">{{ task_meta.progression }}</textarea>
+                  </label>
+                  <label class="full">
+                    Regresión
+                    <textarea name="task_regression" placeholder="Si no sale, se simplifica así…">{{ task_meta.regression }}</textarea>
+                  </label>
+                  <label class="full">
+                    Criterio de éxito
+                    <textarea name="task_success_criteria" placeholder="Cómo sé que ha funcionado…">{{ task_meta.success_criteria }}</textarea>
+                  </label>
                   <label class="full">
                     Regla provocadora
                     <textarea name="task_provocation_rule" rows="2" style="min-height:52px; resize:vertical;">{{ task_meta.provocation_rule }}</textarea>
                   </label>
+                  {% comment %}Los condicionantes existían como vocabulario desde siempre y no se
+                  ofrecían en ninguna pantalla: nunca llegó un solo valor.{% endcomment %}
                   <label class="full">
-                    Progresión
-                    <textarea name="task_progression">{{ task_meta.progression }}</textarea>
+                    Condicionantes
+                    <select name="task_constraints" multiple size="6">
+                      {% for value, label in task_constraint_choices %}
+                      <option value="{{ value }}" {% if value in task_meta.constraints %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                    <span class="meta" style="display:block;margin-top:.25rem;">Puedes elegir varios.</span>
+                  </label>
+                </div>
+              </div>
+            </section>
+
+            {% comment %}Lo único que convierte 705 tareas en una biblioteca con criterio: qué
+            pasó cuando la llevaste al campo. Se sabía cuántas veces se había usado, pero no si
+            funcionó, así que el recomendador sólo podía aprender de las palabras del título.
+            {% endcomment %}
+            <section class="task-settings-pane" data-task-settings-pane="outcome">
+              <div class="editor-section">
+                <div class="editor-section-head">
+                  <h3>Cómo salió</h3>
+                  <span class="meta">Se rellena después de entrenarla, no al crearla.</span>
+                </div>
+                <div class="editor-grid">
+                  <label>
+                    Valoración
+                    <select name="task_execution_rating">
+                      <option value="">-</option>
+                      {% for value, label in task_execution_rating_choices %}
+                      <option value="{{ value }}" {% if task_meta.execution_rating == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Utilidad
+                    <select name="task_usefulness">
+                      <option value="">-</option>
+                      {% for value, label in task_usefulness_choices %}
+                      <option value="{{ value }}" {% if task_meta.usefulness == value %}selected{% endif %}>{{ label }}</option>
+                      {% endfor %}
+                    </select>
+                  </label>
+                  <label>
+                    Minutos reales
+                    <input type="number" name="task_real_minutes" min="0" max="120" value="{{ task_meta.real_minutes }}" placeholder="Ej: 18" />
                   </label>
                   <label class="full">
-                    Regresión
-                    <textarea name="task_regression">{{ task_meta.regression }}</textarea>
-                  </label>
-                  <label class="full">
-                    Criterio de éxito
-                    <textarea name="task_success_criteria">{{ task_meta.success_criteria }}</textarea>
+                    Qué ajusto la próxima vez
+                    <textarea name="task_execution_notes" rows="3" placeholder="Dos líneas: qué cambiarías del espacio, del número de jugadores o de la regla.">{{ task_meta.execution_notes }}</textarea>
                   </label>
                 </div>
               </div>
@@ -1890,8 +1980,8 @@
             <section class="task-settings-pane" data-task-settings-pane="load">
               <div class="editor-section">
                 <div class="editor-section-head">
-                  <h3>Carga y control</h3>
-                  <span class="meta">Exigencia prevista, contexto de microciclo y notas de control.</span>
+                  <h3>Carga y control · avanzado</h3>
+                  <span class="meta">Exigencia prevista, microciclo y control. Hoy estos trece campos están vacíos en las 705 tareas: rellénalos sólo si los vas a usar.</span>
                 </div>
                 <div class="editor-grid">
                   <label>
@@ -3554,7 +3644,9 @@
         let activeTaskTab = "{{ active_task_tab|escapejs }}" || 'presentation';
         let activeTaskEditTab = canEditTask ? ("{{ active_task_edit_tab|default:'graphic'|escapejs }}" || 'graphic') : 'graphic';
         let activeTaskFormatTab = "{{ active_task_format_tab|default:'uefa'|escapejs }}" || 'uefa';
-        let activeTaskSettingsTab = 'sheet';
+        /* La ficha abre por «Qué se hace», que es por donde se empieza una tarea. */
+        const TASK_SETTINGS_TABS = ['content', 'sheet', 'adapt', 'methodology', 'outcome', 'load'];
+        let activeTaskSettingsTab = 'content';
 
         /* La URL refleja el estado (?tab=&edit_tab=&format=) para poder compartir/recargar la vista.
            `mode` es el parámetro viejo: se borra para que no compita con `tab`. */
@@ -3602,7 +3694,7 @@
         };
 
         const syncTaskSettingsTab = (tabName) => {
-          const nextTab = ['sheet', 'content', 'methodology', 'load'].includes(tabName) ? tabName : 'sheet';
+          const nextTab = TASK_SETTINGS_TABS.includes(tabName) ? tabName : TASK_SETTINGS_TABS[0];
           activeTaskSettingsTab = nextTab;
           settingsTabButtons.forEach((button) => {
             const isActive = button.dataset.taskSettingsTab === nextTab;
