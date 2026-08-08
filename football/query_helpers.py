@@ -4,6 +4,7 @@ import re
 import unicodedata
 from datetime import datetime
 
+from . import media_estable
 from django.core.cache import cache
 from django.db.models import Max, Q
 from django.db.utils import OperationalError, ProgrammingError
@@ -474,7 +475,8 @@ def player_assets_map(players):
         if not fila.image:
             continue
         try:
-            url = fila.image.url
+            # Direccion estable: la firmada del bucket cambiaba en cada render.
+            url = media_estable.url_estable(fila.image)
         except Exception:
             continue
         mapa.setdefault(int(fila.player_id), {})[str(fila.kind)] = url

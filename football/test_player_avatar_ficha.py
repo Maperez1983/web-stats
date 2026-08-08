@@ -64,9 +64,17 @@ class PlayerAvatarFichaTests(TestCase):
         self.player.skin_grade = 4
         self.player.save()
         self.assertEqual(resolve_player_avatar_url(self.player), reverse("player-avatar-recolored", args=[self.player.id]))
-        # 3) avatar generado (face-swap) -> tiene prioridad sobre el sintético
+        # 3) avatar generado (face-swap) -> tiene prioridad sobre el sintético.
+        # El avatar ya no se sirve por la URL firmada del bucket -que cambiaba en cada
+        # render- sino por una direccion nuestra y estable (/media/f/<token>/), asi que se
+        # comprueba a que fichero apunta, que es lo que este test siempre quiso decir.
+        from football import media_estable
+
         self.player.avatar_generated.save("gen.png", ContentFile(b"\x89PNG\r\n\x1a\n"), save=True)
-        self.assertIn("player-avatars/", resolve_player_avatar_url(self.player))
+        url = resolve_player_avatar_url(self.player)
+        self.assertTrue(url.startswith("/media/f/"), url)
+        token = url.split("/media/f/")[1].rstrip("/")
+        self.assertIn("player-avatars/", media_estable.nombre_de(token))
 
     def test_editor_catalog_exposes_display(self):
         from django.test import RequestFactory

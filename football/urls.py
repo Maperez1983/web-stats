@@ -559,6 +559,9 @@ urlpatterns = [
     path("coach/asistente/", views.coach_assistant_api, name="coach-assistant"),
     path("player/<int:player_id>/", views.player_detail_page, name="player-detail"),
     path("player/<int:player_id>/photo/", views.player_photo_file, name="player-photo-file"),
+    # Direccion ESTABLE para avatares/escudos/recursos: la firmada del bucket cambiaba en
+    # cada render y el navegador volvia a bajarse 9,5 MB por visita.
+    path("media/f/<str:token>/", views.media_file, name="media-file"),
     path("player/<int:player_id>/license/", views.player_license_file, name="player-license-file"),
     path("player/<int:player_id>/editar/", views.player_edit_page, name="player-edit"),
     path("player/<int:player_id>/valoracion/nueva/", views.player_evaluation_new_page, name="player-evaluation-new"),

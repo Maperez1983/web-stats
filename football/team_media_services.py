@@ -5,6 +5,7 @@ import base64
 import html
 import unicodedata
 from pathlib import Path
+from . import media_estable
 
 from django.conf import settings
 from django.templatetags.static import static
@@ -240,7 +241,8 @@ def _con_escudos_de_la_base(lookup):
             if not url:
                 # El escudo del propio club suele estar SUBIDO como fichero, no como URL.
                 try:
-                    url = equipo.crest_image.url if equipo.crest_image else ''
+                    # Direccion estable: el escudo firmado cambiaba en cada carga.
+                    url = media_estable.url_estable(equipo.crest_image) if equipo.crest_image else ''
                 except Exception:
                     url = ''
             if not url:
@@ -528,7 +530,7 @@ def resolve_team_crest_url(
             return ''
     if getattr(team, 'crest_image', None):
         try:
-            return _abs_or_relative(team.crest_image.url)
+            return _abs_or_relative(media_estable.url_estable(team.crest_image))
         except Exception:
             pass
     crest_url = str(getattr(team, 'crest_url', '') or '').strip()
