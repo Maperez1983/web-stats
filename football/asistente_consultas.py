@@ -367,11 +367,15 @@ def responder_ultimo_partido(frase, equipo):
     from django.utils import timezone
 
     hoy = timezone.localdate()
-    ult = (
-        _partidos_del_equipo(equipo)
-        .filter(date__lte=hoy)
-        .order_by("-date", "-id")
-        .first()
+    # "El ultimo partido" es el ultimo JUGADO, no el ultimo del calendario. Preguntando el
+    # mismo dia del partido, el de hoy aun no se ha jugado y contestaba "todavia no tiene
+    # resultado" cuando lo que quieres saber es como quedo el de la semana pasada.
+    jugados = [
+        m for m in _partidos_del_equipo(equipo).filter(date__lte=hoy).order_by("-date", "-id")[:12]
+        if m.home_score is not None and m.away_score is not None
+    ]
+    ult = jugados[0] if jugados else (
+        _partidos_del_equipo(equipo).filter(date__lte=hoy).order_by("-date", "-id").first()
     )
     if ult is None:
         return {"message": "No encuentro ningún partido jugado.", "highlights": []}
