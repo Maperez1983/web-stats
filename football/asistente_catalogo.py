@@ -89,13 +89,22 @@ def _tarea_nombrada(frase, equipo):
     from football.models import SessionTask
 
     q = sin_tildes(frase)
-    # Solo entre las suyas, y sin el lienzo: aquí solo hace falta el título.
+    # Se BUSCA en la base de datos por las palabras de la frase, no se recorren "las ultimas
+    # 400": la tarea que pides puede ser antigua. Medido en produccion: "borra la tarea Rondo 8
+    # x 2" no la encontraba porque su id quedaba fuera del corte, y acababa proponiendo otra.
+    palabras = [p_ for p_ in re.split(r"[^a-z0-9]+", q) if len(p_) >= 4][:6]
+    if not palabras:
+        return None, []
+    filtro = Q()
+    for palabra in palabras:
+        filtro |= Q(title__icontains=palabra)
     candidatas = []
     for t in (
         SessionTask.objects.select_related("session__microcycle")
         .defer("tactical_layout", "preview_data_b64", "cover_data_b64")
         .filter(session__microcycle__team=equipo, deleted_at__isnull=True)
-        .order_by("-id")[:400]
+        .filter(filtro)
+        .order_by("-id")[:200]
     ):
         titulo = sin_tildes(str(getattr(t, "title", "") or "").strip())
         if len(titulo) >= 4 and titulo in q:
