@@ -51,6 +51,28 @@ def tiene_algo_debajo(tarea):
     return ""
 
 
+CLAVE_PREVIEW_META = "preview_data_embedded_v1"
+
+
+def objetos_del_lienzo(tarea):
+    layout = tarea.tactical_layout if isinstance(tarea.tactical_layout, dict) else {}
+    meta = layout.get("meta") if isinstance(layout.get("meta"), dict) else {}
+    graphic = meta.get("graphic_editor") if isinstance(meta.get("graphic_editor"), dict) else {}
+    estado = graphic.get("canvas_state") if isinstance(graphic.get("canvas_state"), dict) else {}
+    objetos = estado.get("objects") if isinstance(estado.get("objects"), list) else []
+    return len(objetos)
+
+
+def sin_clave(dic, clave):
+    """Copia del JSON sin esa clave en meta. None si no había nada que quitar."""
+    if not isinstance(dic, dict):
+        return None
+    meta = dic.get("meta")
+    if not isinstance(meta, dict) or clave not in meta:
+        return None
+    return {**dic, "meta": {k: v for k, v in meta.items() if k != clave}}
+
+
 class Command(BaseCommand):
     help = "Hace que la tarjeta enseñe el dibujo cuando la imagen que sale está vacía. No borra tareas."
 
@@ -58,11 +80,64 @@ class Command(BaseCommand):
         parser.add_argument("--apply", action="store_true", help="Escribe (por defecto sólo propone).")
         parser.add_argument("--team", type=int, default=0, help="Limitar a un equipo.")
         parser.add_argument("--limite", type=int, default=0, help="Mirar sólo las N primeras.")
+        parser.add_argument(
+            "--redibujar", default="",
+            help="Ids (coma) a los que quitarles TODA imagen para que el servidor la dibuje de nuevo.",
+        )
+
+    def redibujar(self, ids, aplicar):
+        """Les quita TODA imagen guardada para que el servidor la dibuje otra vez del lienzo.
+
+        Se hizo con las 23 sin querer y salió bien: el endpoint, cuando no encuentra imagen y la
+        tarea tiene dibujo, la renderiza. Sólo se toca lo que TIENE objetos en el lienzo: dejar
+        sin imagen a una tarea vacía sería cambiar un verde por un hueco gris.
+        """
+        self.stdout.write("")
+        for tid in ids:
+            tarea = SessionTask.objects.filter(id=tid).first()
+            if not tarea:
+                self.stdout.write(f"  {tid:>6}  no existe")
+                continue
+            objetos = objetos_del_lienzo(tarea)
+            if not objetos:
+                self.stdout.write(self.style.WARNING(
+                    f"  {tid:>6}  NO se toca: su lienzo está vacío (no hay nada que dibujar)"
+                ))
+                continue
+            self.stdout.write(
+                f'  {tid:>6}  {objetos:>3} objetos  ->  se le quita la imagen para que la redibuje'
+                f'   {str(tarea.title or "")[:34]}'
+            )
+            if not aplicar:
+                continue
+            cambios = {"task_preview_image": "", "preview_data_b64": ""}
+            nuevo = sin_clave(tarea.tactical_layout, CLAVE_PREVIEW_META)
+            if nuevo is not None:
+                cambios["tactical_layout"] = nuevo
+            nuevo_light = sin_clave(tarea.task_layout_light, CLAVE_PREVIEW_META)
+            if nuevo_light is not None:
+                cambios["task_layout_light"] = nuevo_light
+            # update() y no save(): save() vuelve a derivar task_family del JSON.
+            SessionTask.objects.filter(id=tid).update(**cambios)
+
+        if aplicar:
+            self.stdout.write(self.style.SUCCESS(
+                "\nHecho. Abre esas tareas en la biblioteca: al pedir la tarjeta, el servidor "
+                "dibuja la imagen desde el lienzo."
+            ))
+        else:
+            self.stdout.write(self.style.WARNING("\nPropuesta: nada escrito. Repite con --apply."))
 
     def handle(self, *args, **options):
         aplicar = bool(options.get("apply"))
         equipo = int(options.get("team") or 0)
         limite = int(options.get("limite") or 0)
+
+        redibujar = [
+            int(x) for x in str(options.get("redibujar") or "").replace(" ", "").split(",") if x.isdigit()
+        ]
+        if redibujar:
+            return self.redibujar(redibujar, aplicar)
 
         qs = (
             SessionTask.objects.select_related("session__microcycle__team")
