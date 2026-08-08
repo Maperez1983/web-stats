@@ -581,9 +581,14 @@ def responder_entrenos_semana(frase, equipo):
     domingo = lunes + datetime.timedelta(days=6)
     from football.models import TrainingSession
 
+    # Dos cosas que se aprenden mirando al lado y no adivinando: la sesión cuelga del
+    # MICROCICLO, no del equipo; y `_sesiones_de_verdad` devuelve una lista, así que el orden
+    # se pide antes, a la consulta.
     sesiones = _sesiones_de_verdad(
-        TrainingSession.objects.filter(team=equipo, session_date__range=(lunes, domingo))
-    ).order_by("session_date", "id")
+        TrainingSession.objects.filter(
+            microcycle__team=equipo, session_date__range=(lunes, domingo)
+        ).order_by("session_date", "start_time")
+    )
     if not sesiones:
         return {"message": "Esta semana no tienes ninguna sesión puesta.",
                 "highlights": []}
