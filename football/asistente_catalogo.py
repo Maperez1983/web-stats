@@ -28,6 +28,11 @@ import unicodedata
 
 logger = logging.getLogger(__name__)
 
+# Lo ultimo que miro el buscador de tareas. Existe porque llevo seis correcciones a ciegas
+# sobre la misma comparacion: cuando el asistente propone una tarea rara hay que poder ver QUE
+# candidatas encontro y con que texto comparo, no adivinar el criterio.
+ULTIMA_BUSQUEDA = {"frase": "", "palabras": [], "en_alcance": 0, "candidatas": [], "elegida": ""}
+
 
 def sin_tildes(texto: str) -> str:
     crudo = str(texto or "").strip().lower()
@@ -132,6 +137,8 @@ def _tarea_nombrada(frase, equipo):
     filtro = Q()
     for palabra in palabras:
         filtro |= Q(title__icontains=palabra)
+    ULTIMA_BUSQUEDA["frase"] = q
+    ULTIMA_BUSQUEDA["palabras"] = list(palabras)
     # Y las COMPARTIDAS de la categoria, no solo las de tu equipo. La biblioteca es del club:
     # tu ves "RONDO 8 x 2" en tu pantalla aunque cuelgue de otro equipo, asi que pedirla por su
     # nombre tiene que funcionar. Sin esto el asistente solo encontraba las propias y acababa
@@ -146,6 +153,7 @@ def _tarea_nombrada(frase, equipo):
     if compartidas:
         alcance |= Q(id__in=list(compartidas)[:2000])
     candidatas = []
+    mirados = []
     for t in (
         SessionTask.objects.select_related("session__microcycle")
         .defer("tactical_layout", "preview_data_b64", "cover_data_b64")
@@ -153,9 +161,12 @@ def _tarea_nombrada(frase, equipo):
         .filter(filtro)
         .order_by("-id")[:200]
     ):
+        mirados.append(t)
         titulo = clave_texto(str(getattr(t, "title", "") or ""))
         if len(titulo) >= 4 and titulo in q:
             candidatas.append(t)
+    ULTIMA_BUSQUEDA["en_alcance"] = len(mirados)
+    ULTIMA_BUSQUEDA["candidatas"] = [str(getattr(t, "title", "") or "")[:40] for t in candidatas[:8]]
     # Si varias comparten titulo, se distinguen por la FECHA de su sesion. Tiene tres tareas
     # llamadas exactamente "RONDO 8 x 2": sin esto, o eliges una al azar o preguntas con tres
     # opciones identicas, que es igual de inutil.
@@ -173,11 +184,14 @@ def _tarea_nombrada(frase, equipo):
         return None, []
     candidatas.sort(key=lambda t: len(str(getattr(t, "title", "") or "")), reverse=True)
     if len(candidatas) == 1:
+        ULTIMA_BUSQUEDA["elegida"] = str(getattr(candidatas[0], "title", "") or "")[:40]
         return candidatas[0], candidatas
     largo0 = len(str(getattr(candidatas[0], "title", "") or ""))
     largo1 = len(str(getattr(candidatas[1], "title", "") or ""))
     if largo0 > largo1:
+        ULTIMA_BUSQUEDA["elegida"] = str(getattr(candidatas[0], "title", "") or "")[:40]
         return candidatas[0], candidatas
+    ULTIMA_BUSQUEDA["elegida"] = "(empate: se pregunta)"
     return None, candidatas
 
 
