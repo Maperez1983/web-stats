@@ -425,6 +425,7 @@
         <form method="post" enctype="multipart/form-data" style="margin-top:0.9rem;">
           {% csrf_token %}
           <div class="grid">
+              {% include 'football/includes/_form_section.html' with titulo='Quién es' %}
             <label>
               Nombre
               <input name="name" value="{% if member %}{{ member.name }}{% endif %}" {% if mode != 'create' and not can_manage_workspace %}readonly{% endif %} required />
@@ -443,6 +444,7 @@
                 </label>
               </div>
               <div class="access-grid">
+              {% include 'football/includes/_form_section.html' with titulo='Qué puede hacer' nota='a qué llega esta persona' %}
                 <label>
                   Rol de acceso
                   <select name="role_preset">
@@ -481,6 +483,7 @@
                 {% endfor %}
               </select>
             </label>
+              {% include 'football/includes/_form_section.html' with titulo='Contacto' %}
             <label>
               Teléfono
               <input name="phone" value="{% if member %}{{ member.phone }}{% endif %}" {% if mode != 'create' and not can_manage_workspace %}readonly{% endif %} />
@@ -493,6 +496,7 @@
               Notas
               <textarea name="notes" {% if mode != 'create' and not can_manage_workspace %}readonly{% endif %}>﻿{% if member %}{{ member.notes }}{% endif %}</textarea>
             </label>
+              {% include 'football/includes/_form_section.html' with titulo='Documentación' %}
             <label>
               Foto
               <input type="file" name="photo" accept="image/*" {% if mode != 'create' and not can_manage_workspace %}disabled{% endif %} />

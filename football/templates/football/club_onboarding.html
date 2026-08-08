@@ -533,6 +533,7 @@
           <input type="hidden" name="action" value="brand_theme" />
           <div class="grid">
             <div>
+              {% include 'football/includes/_form_section.html' with titulo='Colores del club' %}
               <label for="id_theme_primary">Color primario</label>
               <input id="id_theme_primary" type="color" name="theme_primary" value="{{ theme_form.primary|default:'#2f7d32' }}" />
             </div>
@@ -574,6 +575,7 @@
               </select>
             </div>
             <div>
+              {% include 'football/includes/_form_section.html' with titulo='Imagen y letra' %}
               <label for="id_theme_system_image_mode">Uso de imagen de página</label>
               <select id="id_theme_system_image_mode" name="theme_system_image_mode">
                 <option value="home" {% if theme_form.system_image_mode|default:'home' == 'home' %}selected{% endif %}>Solo Home / portada</option>

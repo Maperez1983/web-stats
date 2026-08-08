@@ -383,10 +383,12 @@
           {% csrf_token %}
           <input type="hidden" name="form_action" value="save_identity" />
           <div>
+              {% include 'football/includes/_form_section.html' with titulo='Quién es' %}
             <label for="shortNameInput">Nombre corto</label>
             <input id="shortNameInput" name="short_name" value="{{ rival.short_name|default:'' }}" placeholder="{{ rival.name|default:'Rival' }}" />
           </div>
           <div>
+              {% include 'football/includes/_form_section.html' with titulo='Dónde juega' %}
             <label for="homeStadiumInput">Estadio / campo habitual</label>
             <input id="homeStadiumInput" name="home_stadium" value="{{ rival.home_stadium|default:'' }}" placeholder="Ej. Campo municipal..." />
           </div>
@@ -415,6 +417,7 @@
             <label for="crestImageInput">Escudo del rival</label>
             {% if rival.crest_image %}
               <img class="crest" src="{{ rival.crest_image.url }}" alt="" loading="lazy" />
+              {% include 'football/includes/_form_section.html' with titulo='Escudo y colores' %}
               <label class="check-row"><input type="checkbox" name="clear_crest_image" /> Quitar escudo cargado</label>
             {% elif rival.crest_url %}
               <img class="crest" src="{{ rival.crest_url }}" alt="" loading="lazy" />

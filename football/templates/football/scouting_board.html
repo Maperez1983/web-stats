@@ -838,6 +838,7 @@
             {% csrf_token %}
             <input type="hidden" name="action" value="create" />
             <div class="create-grid">
+              {% include 'football/includes/_form_section.html' with titulo='A quién sigues' %}
               <label style="grid-column:1 / -1;">
                 ¿Ya está en tu plantilla?
                 <select name="linked_player_id" id="scout-linked-player">
@@ -878,6 +879,7 @@
                 Fecha nacimiento
                 <input type="date" name="birth_date" />
               </label>
+              {% include 'football/includes/_form_section.html' with titulo='Cómo lo llevas' nota='prioridad y seguimiento' %}
               <label>
                 Prioridad
                 <select name="priority">

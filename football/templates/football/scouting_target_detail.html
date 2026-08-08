@@ -750,6 +750,7 @@
             {% csrf_token %}
             <input type="hidden" name="action" value="save-target" />
             <div class="form-grid">
+              {% include 'football/includes/_form_section.html' with titulo='Quién es' %}
               <label>Nombre
                 <input type="text" name="subject_name" value="{{ target.subject_name }}" maxlength="160" required />
               </label>
@@ -775,6 +776,7 @@
               <label>Fecha nacimiento
                 <input type="date" name="birth_date" value="{{ target.birth_date|date:'Y-m-d' }}" />
               </label>
+              {% include 'football/includes/_form_section.html' with titulo='Cómo va el seguimiento' %}
               <label>Estado
                 <select name="status">
                   {% for value,label in status_choices %}
@@ -783,6 +785,7 @@
                 </select>
               </label>
               <div class="js-discard-group" style="display: {% if target.status == 'discarded' %}contents{% else %}none{% endif %};">
+              {% include 'football/includes/_form_section.html' with titulo='Si lo descartas' %}
               <label>Motivo del descarte
                 <select name="discard_reason">
                   <option value="">—</option>
@@ -851,12 +854,14 @@
               <label>Fecha
                 <input type="date" name="observed_on" value="{% now 'Y-m-d' %}" />
               </label>
+              {% include 'football/includes/_form_section.html' with titulo='De qué partido' %}
               <label>Rival
                 <input type="text" name="opposition" maxlength="160" />
               </label>
               <label>Competición
                 <input type="text" name="competition" maxlength="160" />
               </label>
+              {% include 'football/includes/_form_section.html' with titulo='Sus notas' nota='del 1 al 10' %}
               <label>Técnico
                 <input type="number" name="technical_rating" min="1" max="10" />
               </label>
@@ -882,6 +887,7 @@
                   {% endfor %}
                 </select>
               </label>
+              {% include 'football/includes/_form_section.html' with titulo='Lo que se escribe' %}
               <label style="grid-column:1 / -1;">Fortalezas
                 <textarea name="strengths"></textarea>
               </label>

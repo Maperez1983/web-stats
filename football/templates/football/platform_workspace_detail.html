@@ -902,6 +902,7 @@ a.team-staff-card:hover, a.team-staff-card:focus-visible {
             <form method="post" enctype="multipart/form-data" class="team-create-form">
               {% csrf_token %}
               <input type="hidden" name="form_action" value="platform_club_identity_update" />
+              {% include 'football/includes/_form_section.html' with titulo='El club' %}
               <label>
                 Nombre oficial
                 <input type="text" name="club_team_name" value="{{ club_identity_form.team_name }}" required />
@@ -962,6 +963,7 @@ a.team-staff-card:hover, a.team-staff-card:focus-visible {
                 Quitar kit portero
                 <span class="sub-chip" style="justify-content:center;"><input type="checkbox" name="clear_kit2d_gk" value="1" /> Limpiar</span>
               </label>
+              {% include 'football/includes/_form_section.html' with titulo='Colores, si no hay imagen' %}
               <label>
                 Color local si no hay imagen
                 <input type="color" name="kit_home_main" value="{{ club_identity_form.kit.home_main }}" />

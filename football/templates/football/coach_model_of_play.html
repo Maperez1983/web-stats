@@ -97,6 +97,7 @@
         <form method="post">
           {% csrf_token %}
           <div class="row">
+            {% include 'football/includes/_form_section.html' with titulo='Cómo queremos jugar' %}
             <label>
               Estilo (macro)
               <select name="style">
@@ -129,6 +130,7 @@
           </div>
 
           <div class="row" style="grid-template-columns:1fr 1fr; margin-top:0.7rem;">
+            {% include 'football/includes/_form_section.html' with titulo='Principios' nota='lo que se repite a los chavales' %}
             <label>
               Principios (Ataque)
               <textarea name="attack_principles" placeholder="Uno por línea. Ej: 5 carriles, 3er hombre, fijar‑soltar...">{{ attack_principles_text }}</textarea>
@@ -140,6 +142,7 @@
           </div>
 
           <div class="row" style="grid-template-columns:1fr 1fr; margin-top:0.7rem;">
+            {% include 'football/includes/_form_section.html' with titulo='Subprincipios' %}
             <label>
               Subprincipios (Ataque)
               <textarea name="attack_subprinciples" placeholder="Uno por línea. Ej: hombre libre por detrás de línea, apoyo de seguridad...">{{ attack_subprinciples_text }}</textarea>
