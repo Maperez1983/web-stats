@@ -100,7 +100,18 @@ def _tarea_nombrada(frase, equipo):
         titulo = sin_tildes(str(getattr(t, "title", "") or "").strip())
         if len(titulo) >= 4 and titulo in q:
             candidatas.append(t)
+    # GANA EL TITULO MAS LARGO. Con una tarea llamada "RONDO" y otra "Rondo 8 x 2", pedir la
+    # segunda hacia que encajaran las dos, y quedarse con cualquiera es apuntar a la equivocada:
+    # medido en produccion, "borra la tarea Rondo 8 x 2" proponia borrar "RONDO". El titulo mas
+    # largo es el mas especifico. Si hay empate, no se elige: se pregunta.
+    if not candidatas:
+        return None, []
+    candidatas.sort(key=lambda t: len(str(getattr(t, "title", "") or "")), reverse=True)
     if len(candidatas) == 1:
+        return candidatas[0], candidatas
+    largo0 = len(str(getattr(candidatas[0], "title", "") or ""))
+    largo1 = len(str(getattr(candidatas[1], "title", "") or ""))
+    if largo0 > largo1:
         return candidatas[0], candidatas
     return None, candidatas
 

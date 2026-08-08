@@ -139,6 +139,21 @@ class AsistenteAccionesTests(TestCase):
         tarea.refresh_from_db()
         self.assertEqual(tarea.block, SessionTask.BLOCK_MAIN_1)
 
+    def test_entre_dos_titulos_gana_el_mas_especifico(self):
+        # Con "RONDO" y "Rondo 8 x 2" en la biblioteca, pedir la segunda hacia que encajaran las
+        # dos. Quedarse con cualquiera es mandar a la papelera la equivocada.
+        from football.models import SessionTask
+
+        corta = SessionTask.objects.create(session=self.session, title="RONDO")
+        larga = SessionTask.objects.create(session=self.session, title="Rondo 8 x 2")
+        respuesta = self._decir("borra la tarea Rondo 8 x 2")
+        self.assertIn("Rondo 8 x 2", respuesta)
+        self._decir("sí")
+        corta.refresh_from_db()
+        larga.refresh_from_db()
+        self.assertIsNone(corta.deleted_at)      # la corta NO se toca
+        self.assertIsNotNone(larga.deleted_at)
+
     def test_un_si_suelto_no_ejecuta_nada(self):
         respuesta = self._decir("sí")
         self.assertIn("nada pendiente", respuesta.lower())
