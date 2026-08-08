@@ -523,6 +523,119 @@ def responder_goleador(frase, equipo):
             "highlights": [str(getattr(porId.get(filas[0]["player_id"]), "name", "") or "")]}
 
 
+def es_pregunta_balance(frase):
+    q = _sin_tildes(frase)
+    if any(p in q for p in ("balance", "cuantos hemos ganado", "cuantas victorias",
+                            "cuantos partidos llevamos", "que racha", "como vamos")):
+        return True
+    # "cuantos partidos hemos ganado": el participio, no "ganamos", que es del ultimo partido.
+    return ("cuantos" in q or "cuantas" in q) and any(
+        p in q for p in ("ganado", "perdido", "empatado", "jugado", "victoria", "derrota"))
+
+
+def responder_balance(frase, equipo):
+    from django.utils import timezone
+
+    hoy = timezone.localdate()
+    ganados = perdidos = empatados = 0
+    gf = gc = 0
+    for partido in _partidos_del_equipo(equipo).filter(date__lte=hoy):
+        casa = _es_nuestro(equipo, partido.home_team)
+        nuestros, suyos = (partido.home_score, partido.away_score) if casa else (partido.away_score, partido.home_score)
+        # Sin marcador no es un partido jugado, es una fila del calendario con la fecha pasada.
+        if nuestros is None or suyos is None:
+            continue
+        gf += int(nuestros)
+        gc += int(suyos)
+        if nuestros > suyos:
+            ganados += 1
+        elif nuestros < suyos:
+            perdidos += 1
+        else:
+            empatados += 1
+    total = ganados + empatados + perdidos
+    if not total:
+        return {"message": "Todavía no hay ningún partido con resultado apuntado.",
+                "highlights": []}
+    return {"message": (f"{total} partidos jugados: {ganados} ganados, {empatados} empatados, "
+                        f"{perdidos} perdidos.\nGoles: {gf} a favor y {gc} en contra "
+                        f"({gf - gc:+d}).\n\nVer: /coach/partidos/"),
+            "highlights": [f"{ganados}G {empatados}E {perdidos}P"]}
+
+
+def es_pregunta_entrenos_semana(frase):
+    q = _sin_tildes(frase)
+    if not any(p in q for p in ("entrenamos", "entreno", "entrenos", "entrenamientos", "sesiones")):
+        return False
+    return any(p in q for p in ("cuando", "que dias", "esta semana", "que horario", "a que hora",
+                                "horario"))
+
+
+def responder_entrenos_semana(frase, equipo):
+    import datetime
+
+    from django.utils import timezone
+
+    hoy = timezone.localdate()
+    lunes = hoy - datetime.timedelta(days=hoy.weekday())
+    domingo = lunes + datetime.timedelta(days=6)
+    from football.models import TrainingSession
+
+    sesiones = _sesiones_de_verdad(
+        TrainingSession.objects.filter(team=equipo, session_date__range=(lunes, domingo))
+    ).order_by("session_date", "id")
+    if not sesiones:
+        return {"message": "Esta semana no tienes ninguna sesión puesta.",
+                "highlights": []}
+    lineas = []
+    for s in sesiones:
+        hora = ""
+        for campo in ("start_time", "session_time", "time"):
+            valor = getattr(s, campo, None)
+            if valor:
+                try:
+                    hora = valor.strftime("%H:%M")
+                except Exception:
+                    hora = ""
+                break
+        foco = str(getattr(s, "focus", "") or "").strip()
+        marca = " ←hoy" if s.session_date == hoy else ""
+        lineas.append(f"· {dia_corto(s.session_date)}"
+                      + (f" {hora}" if hora else "")
+                      + (f" — {foco[:40]}" if foco else "")
+                      + marca)
+    return {"message": f"Esta semana entrenas {len(lineas)} día"
+                       f"{'s' if len(lineas) != 1 else ''}:\n" + "\n".join(lineas)
+                       + "\n\nVer: /coach/sesiones/",
+            "highlights": [f"{len(lineas)} sesiones"]}
+
+
+def es_pregunta_minutos(frase):
+    q = _sin_tildes(frase)
+    return "minuto" in q and any(p in q for p in ("quien", "cuantos", "menos", "mas", "reparto",
+                                                  "jugado", "lleva"))
+
+
+def responder_minutos(frase, equipo):
+    """Reparto de minutos. Sale de compute_player_cards, que es de donde salen las tarjetas de
+    la plantilla: si el asistente los sumara por su cuenta, dos pantallas de la misma casa
+    darían dos números para la misma pregunta."""
+    from football.stats_services import compute_player_cards
+
+    q = _sin_tildes(frase)
+    tarjetas = [t for t in (compute_player_cards(equipo) or []) if int(t.get("pj") or 0) > 0]
+    if not tarjetas:
+        return {"message": "Todavía no hay minutos apuntados esta temporada.", "highlights": []}
+    al_reves = "menos" in q or "poco" in q
+    tarjetas.sort(key=lambda t: int(t.get("minutes") or 0), reverse=not al_reves)
+    lineas = [f"· {t.get('name') or '?'} — {int(t.get('minutes') or 0)} min "
+              f"en {int(t.get('pj') or 0)} partido{'s' if int(t.get('pj') or 0) != 1 else ''}"
+              for t in tarjetas[:6]]
+    titulo = "Los que menos minutos llevan:" if al_reves else "Los que más minutos llevan:"
+    return {"message": titulo + "\n" + "\n".join(lineas) + "\n\nVer: /coach/plantilla/",
+            "highlights": [str(tarjetas[0].get("name") or "")]}
+
+
 def es_pregunta_sancionados(frase):
     q = _sin_tildes(frase)
     return any(p in q for p in ("sancionado", "sancion", "sanciones", "quien no puede jugar",
@@ -620,6 +733,11 @@ CONSULTAS = (
     (es_pregunta_asistencia, responder_asistencia),
     (es_pregunta_tareas_de_sesion, responder_tareas_de_sesion),
     (es_pregunta_cuantas_sesiones, responder_cuantas_sesiones),
+    (es_pregunta_entrenos_semana, responder_entrenos_semana),
+    (es_pregunta_minutos, responder_minutos),
+    # El balance ANTES que el ultimo partido: esa se queda con "ganamos" y "perdimos", y
+    # "cuantos partidos hemos ganado" no pregunta por el del domingo, pregunta por el curso.
+    (es_pregunta_balance, responder_balance),
     # Antes que la ficha de un jugador: esa reconoce la frase por el NOMBRE que lleve dentro,
     # y basta con que alguien se llame como una palabra corriente para que se la quede.
     (es_pregunta_sancionados, responder_sancionados),
