@@ -1,5 +1,43 @@
 <style>
   :root { --matchday-rail-height: 78px; }
+  /* La barra fijaba un fondo OSCURO a mano pero escribía con los colores del tema
+     (--prod-text, --prod-muted). En modo claro esos colores son azul marino: el rival,
+     "Lista guardada" y los cuatro pasos salían en negro sobre negro (contraste 1.11,
+     cuando lo legible empieza en 4.5). Ahora la barra tiene sus propios colores y los
+     cambia con el tema, en vez de mezclar un fondo suyo con letras de otro. */
+  .matchday-rail {
+    --rail-fondo: rgba(4, 10, 22, 0.96);
+    --rail-borde: rgba(244, 180, 0, 0.25);
+    --rail-texto: #f5f7fa;
+    --rail-apagado: #aab5c8;
+    --rail-acento: #f4b400;
+    --rail-paso: rgba(255, 255, 255, 0.045);
+    --rail-paso-borde: rgba(148, 163, 184, 0.2);
+    --rail-sombra: 0 16px 42px rgba(0, 0, 0, 0.38);
+  }
+  :root[data-theme="light"] .matchday-rail {
+    --rail-fondo: #ffffff;
+    --rail-borde: rgba(244, 180, 0, 0.55);
+    --rail-texto: #0f172a;
+    /* Color sólido, no un negro al 68%: sobre blanco ese negro traslúcido se queda en
+       2.8 de contraste, que sigue siendo ilegible. */
+    --rail-apagado: #475569;
+    /* El dorado de marca sobre blanco se queda en 1.9 de contraste: en claro se oscurece. */
+    --rail-acento: #8a6300;
+    --rail-paso: rgba(15, 23, 42, 0.035);
+    --rail-paso-borde: rgba(15, 23, 42, 0.14);
+    --rail-sombra: 0 12px 30px rgba(15, 23, 42, 0.1);
+  }
+  :root[data-theme="hc"] .matchday-rail {
+    --rail-fondo: #000000;
+    --rail-borde: rgba(255, 255, 255, 0.5);
+    --rail-texto: #ffffff;
+    --rail-apagado: #ffffff;
+    --rail-acento: #ffd24a;
+    --rail-paso: rgba(255, 255, 255, 0.08);
+    --rail-paso-borde: rgba(255, 255, 255, 0.5);
+    --rail-sombra: none;
+  }
   .matchday-rail {
     position: sticky;
     top: 0;
@@ -10,10 +48,10 @@
     display: grid;
     grid-template-columns: minmax(180px, 0.85fr) minmax(520px, 2.15fr);
     gap: 0.55rem;
-    border: 1px solid rgba(244, 180, 0, 0.25);
+    border: 1px solid var(--rail-borde);
     border-radius: 18px;
-    background: rgba(4, 10, 22, 0.96);
-    box-shadow: 0 16px 42px rgba(0, 0, 0, 0.38);
+    background: var(--rail-fondo);
+    box-shadow: var(--rail-sombra);
     backdrop-filter: blur(16px);
     box-sizing: border-box;
   }
@@ -24,11 +62,11 @@
     flex-direction: column;
     justify-content: center;
     padding: 0.25rem 0.45rem;
-    color: var(--prod-text, #f5f7fa);
+    color: var(--rail-texto);
     text-decoration: none;
   }
   .matchday-rail__eyebrow {
-    color: var(--prod-secondary, #f4b400);
+    color: var(--rail-acento);
     font-size: 0.58rem;
     font-weight: 950;
     letter-spacing: 0.18em;
@@ -57,10 +95,10 @@
     grid-template-columns: 24px minmax(0, 1fr);
     align-items: center;
     gap: 0.4rem;
-    border: 1px solid rgba(148, 163, 184, 0.2);
+    border: 1px solid var(--rail-paso-borde);
     border-radius: 13px;
-    background: rgba(255, 255, 255, 0.045);
-    color: var(--prod-text, #f5f7fa);
+    background: var(--rail-paso);
+    color: var(--rail-texto);
     text-decoration: none;
   }
   .matchday-rail__step:hover { border-color: rgba(244, 180, 0, 0.48); }
@@ -76,13 +114,16 @@
     align-items: center;
     justify-content: center;
     border-radius: 50%;
-    background: rgba(148, 163, 184, 0.15);
-    color: var(--prod-muted, #aab5c8);
+    background: rgba(148, 163, 184, 0.18);
+    color: var(--rail-apagado);
     font-size: 0.66rem;
     font-weight: 950;
   }
   .matchday-rail__step.is-current .matchday-rail__number {
-    background: var(--prod-secondary, #f4b400);
+    /* Dorado fijo, no el del tema: en claro --prod-secondary se oscurece y el número
+       quedaba azul marino sobre marrón. Sobre este dorado el texto oscuro va bien en
+       los dos temas. */
+    background: #f4b400;
     color: #101827;
   }
   .matchday-rail__copy { min-width: 0; }
@@ -102,7 +143,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    color: var(--prod-muted, #aab5c8);
+    color: var(--rail-apagado);
     font-size: 0.56rem;
     font-weight: 800;
     letter-spacing: 0.04em;
