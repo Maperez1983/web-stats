@@ -34,6 +34,16 @@ def sin_tildes(texto: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFKD", crudo) if not unicodedata.combining(c))
 
 
+def clave_texto(texto: str) -> str:
+    """Sin tildes, en minusculas y con TODO lo que no sea letra o numero como un solo espacio.
+
+    Hace falta para comparar titulos con lo que escribe el usuario: un titulo guardado como
+    "RONDO 8  x 2" -con dos espacios, o con un espacio duro pegado desde un PDF- no encajaba
+    dentro de "borra la tarea Rondo 8 x 2" y el asistente proponia otra tarea distinta.
+    """
+    return " ".join(re.split(r"[^a-z0-9]+", sin_tildes(texto))).strip()
+
+
 def dice(frase: str, *palabras) -> bool:
     """¿La frase contiene alguna de estas palabras, como palabra suelta?"""
     q = sin_tildes(frase)
@@ -88,7 +98,7 @@ def _tarea_nombrada(frase, equipo):
 
     from football.models import SessionTask
 
-    q = sin_tildes(frase)
+    q = clave_texto(frase)
     # Se BUSCA en la base de datos por las palabras de la frase, no se recorren "las ultimas
     # 400": la tarea que pides puede ser antigua. Medido en produccion: "borra la tarea Rondo 8
     # x 2" no la encontraba porque su id quedaba fuera del corte, y acababa proponiendo otra.
@@ -106,7 +116,7 @@ def _tarea_nombrada(frase, equipo):
         .filter(filtro)
         .order_by("-id")[:200]
     ):
-        titulo = sin_tildes(str(getattr(t, "title", "") or "").strip())
+        titulo = clave_texto(str(getattr(t, "title", "") or ""))
         if len(titulo) >= 4 and titulo in q:
             candidatas.append(t)
     # GANA EL TITULO MAS LARGO. Con una tarea llamada "RONDO" y otra "Rondo 8 x 2", pedir la
@@ -210,13 +220,13 @@ def _restaurar_reconoce(frase):
 def _restaurar_prepara(frase, ctx):
     from football.models import SessionTask
 
-    q = sin_tildes(frase)
+    q = clave_texto(frase)
     candidatas = [
         t for t in SessionTask.objects
         .defer("tactical_layout", "preview_data_b64", "cover_data_b64")
         .filter(session__microcycle__team=ctx["equipo"], deleted_at__isnull=False)
         .order_by("-deleted_at")[:200]
-        if len(sin_tildes(str(t.title or ""))) >= 4 and sin_tildes(str(t.title or "")) in q
+        if len(clave_texto(str(t.title or ""))) >= 4 and clave_texto(str(t.title or "")) in q
     ]
     if len(candidatas) != 1:
         if len(candidatas) > 1:
