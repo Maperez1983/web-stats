@@ -140,6 +140,16 @@ def _duplicate_summary(cursor, connection, table_name: str, columns: list[str], 
 
 
 def inspect_database_readonly(*, page_context=None, max_tables: int = DEFAULT_MAX_TABLES, column_limit: int = 8, duplicate_limit: int = 3) -> dict:
+    # Inspeccionar el ESQUEMA entero de la base de datos es una sonda cara, y llegaba al
+    # chat por dos caminos distintos: se tapo uno y quedaba el otro. Se guarda en el
+    # origen, que es donde hay que guardar estas cosas.
+    try:
+        from football.system_guard import sondas_caras_permitidas
+
+        if not sondas_caras_permitidas():
+            return {"ok": False, "skipped": True, "error": "sonda_omitida_en_el_chat"}
+    except Exception:
+        pass
     alias = "default"
     try:
         connection = connections[alias]
