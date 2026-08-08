@@ -108,11 +108,24 @@ def _tarea_nombrada(frase, equipo):
     filtro = Q()
     for palabra in palabras:
         filtro |= Q(title__icontains=palabra)
+    # Y las COMPARTIDAS de la categoria, no solo las de tu equipo. La biblioteca es del club:
+    # tu ves "RONDO 8 x 2" en tu pantalla aunque cuelgue de otro equipo, asi que pedirla por su
+    # nombre tiene que funcionar. Sin esto el asistente solo encontraba las propias y acababa
+    # proponiendo otra tarea con un titulo parecido.
+    try:
+        from football.library_sharing import ids_de_tareas_compartidas_de_un_equipo
+
+        compartidas = set(ids_de_tareas_compartidas_de_un_equipo(equipo) or [])
+    except Exception:
+        compartidas = set()
+    alcance = Q(session__microcycle__team=equipo)
+    if compartidas:
+        alcance |= Q(id__in=list(compartidas)[:2000])
     candidatas = []
     for t in (
         SessionTask.objects.select_related("session__microcycle")
         .defer("tactical_layout", "preview_data_b64", "cover_data_b64")
-        .filter(session__microcycle__team=equipo, deleted_at__isnull=True)
+        .filter(alcance, deleted_at__isnull=True)
         .filter(filtro)
         .order_by("-id")[:200]
     ):
