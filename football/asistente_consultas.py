@@ -214,10 +214,88 @@ def responder_cuantas_sesiones(frase, equipo):
     }
 
 
+def _jugador_nombrado(frase, equipo):
+    """El jugador que nombra la frase. Con frontera de palabra: hay uno llamado Reno y
+    encajaba dentro de "entreno"."""
+    from football.models import Player
+
+    q = _sin_tildes(frase)
+    encontrados = []
+    for p_ in Player.objects.filter(team=equipo, is_active=True).only(
+        "id", "name", "full_name", "nickname", "number", "position", "birth_date"
+    ):
+        for cand in (p_.name, p_.full_name, p_.nickname):
+            cand = str(cand or "").strip()
+            if len(cand) >= 3 and re.search(r"\b" + re.escape(_sin_tildes(cand)) + r"\b", q):
+                encontrados.append(p_)
+                break
+    return encontrados
+
+
+def es_pregunta_jugador(frase):
+    q = _sin_tildes(frase)
+    # Se exige una FORMA DE PREGUNTAR, no solo el nombre: "pon a Harley en seguimiento" lleva
+    # su nombre y es una orden, no una consulta.
+    return any(p in q for p in ("como va", "que tal esta", "que tal va", "como esta", "ficha de",
+                                "informacion de", "info de", "datos de", "cuantos goles",
+                                "cuantas tarjetas", "cuantos minutos", "como lleva"))
+
+
+def responder_jugador(frase, equipo):
+    from football.models import PlayerInjuryRecord
+
+    encontrados = _jugador_nombrado(frase, equipo)
+    if not encontrados:
+        return {"message": "No sé de qué jugador hablas. Dime su nombre tal cual aparece en la "
+                           "plantilla.", "highlights": []}
+    if len(encontrados) > 1:
+        nombres = ", ".join(str(getattr(x, "name", "") or "") for x in encontrados[:5])
+        return {"message": f"¿A cuál te refieres? {nombres}.", "highlights": ["Hay más de uno"]}
+
+    p_ = encontrados[0]
+    datos = []
+    if p_.number:
+        datos.append(f"dorsal {p_.number}")
+    if p_.position:
+        datos.append(str(p_.position))
+    try:
+        if p_.birth_date:
+            from django.utils import timezone
+
+            hoy = timezone.localdate()
+            edad = hoy.year - p_.birth_date.year - (
+                (hoy.month, hoy.day) < (p_.birth_date.month, p_.birth_date.day)
+            )
+            datos.append(f"{edad} años")
+    except Exception:
+        pass
+
+    # Lo primero que quiere saber un entrenador: si puede contar con él.
+    estado = "disponible"
+    try:
+        abierta = (
+            PlayerInjuryRecord.objects.filter(player=p_, is_active=True)
+            .order_by("-id")
+            .first()
+        )
+        if abierta is not None:
+            detalle = str(getattr(abierta, "description", "") or getattr(abierta, "injury_type", "") or "").strip()
+            estado = "LESIONADO" + (f" ({detalle[:40]})" if detalle else "")
+    except Exception:
+        pass
+
+    cabecera = f"{p_.name}" + (f" — {', '.join(datos)}" if datos else "")
+    return {
+        "message": f"{cabecera}\nEstado: {estado}\n\nFicha: /player/{int(p_.id)}/",
+        "highlights": [str(p_.name or ""), estado[:20]],
+    }
+
+
 CONSULTAS = (
     (es_pregunta_asistencia, responder_asistencia),
     (es_pregunta_tareas_de_sesion, responder_tareas_de_sesion),
     (es_pregunta_cuantas_sesiones, responder_cuantas_sesiones),
+    (es_pregunta_jugador, responder_jugador),
 )
 
 
