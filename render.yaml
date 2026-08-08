@@ -95,6 +95,13 @@ services:
       # Fallback: si los navegadores no quedaron en caché tras el build, Render los reinstala al arrancar.
       - key: INSTALL_PLAYWRIGHT_BROWSERS_AT_RUNTIME
         value: "true"
+      # Fotos HD de las pizarras. El sitio bueno es el worker; esto es el respaldo, porque este
+      # servicio SÍ se sabe que ejecuta su script de arranque. Va despacio (una foto cada 3 min)
+      # para no quitarle maquina a las peticiones. Ver `scripts/start_with_ollama.sh`.
+      - key: BOARD_SHOT_BASE_URL
+        sync: false
+      - key: BOARD_SHOT_INTERVAL_SECONDS
+        value: "180"
       # Seguridad: desactiva fallback monoclub en producción si no lo necesitas.
       - key: ALLOW_SINGLE_CLUB_FALLBACK
         value: "false"
