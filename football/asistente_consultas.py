@@ -16,6 +16,17 @@ from datetime import timedelta
 
 logger = logging.getLogger(__name__)
 
+DIAS_CORTOS = ("lun", "mar", "mié", "jue", "vie", "sáb", "dom")
+
+
+def dia_corto(fecha):
+    """"mar 04/08". El strftime del servidor da "Tue": el locale no es de fiar."""
+    try:
+        return f"{DIAS_CORTOS[fecha.weekday()]} {fecha.strftime('%d/%m')}"
+    except Exception:
+        return ""
+
+
 DIAS = (
     ("lunes", 0), ("martes", 1), ("miercoles", 2), ("miércoles", 2),
     ("jueves", 3), ("viernes", 4), ("sabado", 5), ("sábado", 5), ("domingo", 6),
@@ -53,6 +64,12 @@ def sesion_referida(frase, equipo):
     q = _sin_tildes(frase)
     base = TrainingSession.objects.select_related("microcycle").filter(microcycle__team=equipo)
 
+    # "que HICE el martes" es el martes que ya paso; "que hago el martes", el que viene. Sin
+    # esto, preguntando un viernes por lo que hiciste el martes te contestaba con el siguiente.
+    en_pasado = any(p in q for p in ("hice", "hicimos", "hiciste", "entrene", "entrenamos",
+                                     "fue", "vino", "vinieron", "falto", "faltaron", "trabaje",
+                                     "trabajamos", "pasado", "pasada", "ultimo", "ultima"))
+
     dia = dia_pedido(frase)
     if dia is not None:
         # El más cercano en el tiempo, mirando 10 días atrás y 10 adelante: «el martes» puede
@@ -63,9 +80,13 @@ def sesion_referida(frase, equipo):
             .order_by("session_date")
         )
         delDia = [s for s in ventana if s.session_date and s.session_date.weekday() == dia]
-        if delDia:
-            return min(delDia, key=lambda s: abs((s.session_date - hoy).days))
-        return None
+        if not delDia:
+            return None
+        if en_pasado:
+            pasadas = [s for s in delDia if s.session_date <= hoy]
+            if pasadas:
+                return max(pasadas, key=lambda s: s.session_date)
+        return min(delDia, key=lambda s: abs((s.session_date - hoy).days))
 
     if any(p in q for p in ("ultimo", "ultima", "pasado", "pasada", "anterior", "ayer")):
         celebradas = _sesiones_de_verdad(
@@ -184,10 +205,10 @@ def responder_cuantas_sesiones(frase, equipo):
     for s in sesiones:
         hora = s.start_time.strftime("%H:%M") if getattr(s, "start_time", None) else ""
         foco = str(getattr(s, "focus", "") or "").strip()[:34]
-        lineas.append(f"· {s.session_date.strftime('%a %d/%m')}"
+        lineas.append(f"· {dia_corto(s.session_date)}"
                       + (f" {hora}" if hora else "") + (f" — {foco}" if foco else ""))
     return {
-        "message": f"Tienes {len(sesiones)} sesión{'es' if len(sesiones) != 1 else ''} {cuando}:\n"
+        "message": f"Tienes {len(sesiones)} {'sesiones' if len(sesiones) != 1 else 'sesión'} {cuando}:\n"
                    + "\n".join(lineas) + "\n\nVer: /coach/sesiones/",
         "highlights": [f"{len(sesiones)} sesiones"],
     }
