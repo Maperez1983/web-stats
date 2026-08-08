@@ -427,6 +427,102 @@ def responder_videos(frase, equipo):
             "highlights": [f"{videos} vídeos", f"{clips} clips"]}
 
 
+# --- Clasificacion, biblioteca y goleadores ---------------------------------------------------
+
+def es_pregunta_clasificacion(frase):
+    q = _sin_tildes(frase)
+    return any(p in q for p in ("clasificacion", "que rivales", "quien va primero", "en que puesto",
+                                "posicion en la liga", "tabla", "como vamos en la liga",
+                                "rivales de la liga", "rivales tengo"))
+
+
+def responder_clasificacion(frase, equipo):
+    from football.models import TeamStanding
+
+    mia = TeamStanding.objects.filter(team=equipo).order_by("-last_updated").first()
+    if mia is None or not getattr(mia, "group_id", None):
+        return {"message": "No tengo la clasificación de tu grupo cargada todavía."
+                           "\n\nVer: /coach/partidos/", "highlights": []}
+    filas = list(
+        TeamStanding.objects.select_related("team")
+        .filter(group_id=mia.group_id, season=mia.season)
+        .order_by("position")[:20]
+    )
+    if not filas:
+        return {"message": "No tengo la clasificación cargada.", "highlights": []}
+    lineas = []
+    for f in filas:
+        marca = " ←" if int(getattr(f, "team_id", 0)) == int(equipo.id) else ""
+        lineas.append(f"{int(f.position or 0):2}. {str(getattr(f.team, 'name', '') or '')[:26]}"
+                      f" — {int(f.points or 0)} pts{marca}")
+    return {
+        "message": f"Clasificación ({len(filas)} equipos):\n" + "\n".join(lineas)
+                   + "\n\nVer: /coach/partidos/",
+        "highlights": [f"{int(mia.position or 0)}º", f"{int(mia.points or 0)} pts"],
+    }
+
+
+def es_pregunta_cuantas_tareas(frase):
+    q = _sin_tildes(frase)
+    return (any(p in q for p in ("cuantas", "cuantos")) 
+            and any(p in q for p in ("tarea", "tareas", "ejercicio", "ejercicios"))
+            and "sesion" not in q)
+
+
+def responder_cuantas_tareas(frase, equipo):
+    from django.db.models import Q
+
+    from football.models import SessionTask
+
+    try:
+        from football.library_sharing import ids_de_tareas_compartidas_de_un_equipo
+
+        compartidas = set(ids_de_tareas_compartidas_de_un_equipo(equipo) or [])
+    except Exception:
+        compartidas = set()
+    alcance = Q(session__microcycle__team=equipo)
+    if compartidas:
+        alcance |= Q(id__in=list(compartidas)[:2000])
+    total = SessionTask.objects.filter(alcance, deleted_at__isnull=True).count()
+    papelera = SessionTask.objects.filter(alcance, deleted_at__isnull=False).count()
+    texto = f"Tienes {total} tarea{'s' if total != 1 else ''} disponibles"
+    if papelera:
+        texto += f" y {papelera} en la papelera"
+    return {"message": texto + ".\n\nVer: /coach/sesiones/?tab=library",
+            "highlights": [f"{total} tareas"]}
+
+
+def es_pregunta_goleador(frase):
+    q = _sin_tildes(frase)
+    return any(p in q for p in ("goleador", "maximo goleador", "quien mas goles", "mas goles",
+                                "quien lleva mas goles", "pichichi"))
+
+
+def responder_goleador(frase, equipo):
+    from django.db.models import Count
+
+    from football.models import MatchEvent, Player
+
+    ids = list(Player.objects.filter(team=equipo).values_list("id", flat=True))
+    # Se cuenta del REGISTRO de acciones, que es la fuente que el llena: los goles apuntados
+    # en directo o en la edicion del partido.
+    filas = (
+        MatchEvent.objects.filter(player_id__in=ids)
+        .filter(event_type__icontains="gol")
+        .values("player_id")
+        .annotate(n=Count("id"))
+        .order_by("-n")[:5]
+    )
+    if not filas:
+        return {"message": "No hay goles apuntados en el registro de acciones todavía.",
+                "highlights": []}
+    porId = {p.id: p for p in Player.objects.filter(id__in=[f["player_id"] for f in filas])}
+    lineas = [f"· {str(getattr(porId.get(f['player_id']), 'name', '') or '?')} — {f['n']} gol"
+              f"{'es' if f['n'] != 1 else ''}" for f in filas]
+    return {"message": "Máximos goleadores:\n" + "\n".join(lineas),
+            "highlights": [str(getattr(porId.get(filas[0]["player_id"]), "name", "") or "")]}
+
+
 CONSULTAS = (
     (es_pregunta_asistencia, responder_asistencia),
     (es_pregunta_tareas_de_sesion, responder_tareas_de_sesion),
@@ -437,6 +533,11 @@ CONSULTAS = (
     (es_pregunta_ultimo_partido, responder_ultimo_partido),
     (es_pregunta_proximo_partido, responder_proximo_partido),
     (es_pregunta_videos, responder_videos),
+    (es_pregunta_clasificacion, responder_clasificacion),
+    (es_pregunta_goleador, responder_goleador),
+    # La de las tareas va la ULTIMA: "cuantas tareas tiene la sesion del martes" es una
+    # pregunta de la sesion, no del total de la biblioteca.
+    (es_pregunta_cuantas_tareas, responder_cuantas_tareas),
 )
 
 
