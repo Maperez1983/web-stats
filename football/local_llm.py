@@ -16,7 +16,18 @@ DEFAULT_VISION_MODELS = (
 
 def local_llm_config():
     provider = str(os.getenv('AI_TRAINER_LOCAL_LLM_PROVIDER') or 'ollama').strip().lower()
-    enabled = str(os.getenv('AI_TRAINER_LOCAL_LLM_ENABLED') or '1').strip().lower() not in {'0', 'false', 'no', 'off'}
+    # APAGADO SI NADIE DICE LO CONTRARIO (2026-08-08).
+    #
+    # Esto valia '1' por defecto, o sea ENCENDIDO cuando la variable no existe. El 7 de agosto se
+    # decidio apagar el modelo local en produccion -se quedaba residente comiendo memoria y CPU:
+    # la misma pagina costaba 36 ms en calma y 1.185 ms tras cuatro peticiones seguidas- y se
+    # escribio `false` en el servicio web. Pero en el worker y en el cron nadie la escribio, asi
+    # que ALLI SEGUIA ENCENDIDO por el defecto. Un apagado que hay que repetir servicio por
+    # servicio, y que se revierte solo en cuanto anadas uno nuevo, no es un apagado.
+    #
+    # Ahora hay que pedirlo a proposito. Es lo correcto para algo que cuesta memoria: el que lo
+    # quiere, lo enciende.
+    enabled = str(os.getenv('AI_TRAINER_LOCAL_LLM_ENABLED') or '0').strip().lower() in {'1', 'true', 'yes', 'on'}
     model = str(os.getenv('AI_TRAINER_LOCAL_LLM_MODEL') or os.getenv('OLLAMA_MODEL') or DEFAULT_QWEN_MODEL).strip() or DEFAULT_QWEN_MODEL
     base_url = str(os.getenv('AI_TRAINER_OLLAMA_URL') or DEFAULT_OLLAMA_URL).strip().rstrip('/') or DEFAULT_OLLAMA_URL
     timeout = 45

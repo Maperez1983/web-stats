@@ -105,10 +105,13 @@ services:
       # Seguridad: desactiva fallback monoclub en producción si no lo necesitas.
       - key: ALLOW_SINGLE_CLUB_FALLBACK
         value: "false"
-      # Ollana: activa el razonamiento LLM dentro del ciclo proactivo del guard. Solo aquí
-      # (el web ya arranca Ollama); en el worker NO se pone, así que allí sigue sin LLM ni RAM extra.
+      # Ollana: razonamiento LLM dentro del ciclo proactivo del guard. APAGADO desde el
+      # 2026-08-08: estaba a "true" mientras `ENABLE_OLLAMA` pasaba a "false", o sea que se le
+      # pedía al guardián que razonara con un modelo que ya no se arranca aquí. Es candidato
+      # serio a los 502 del guardián que quedaron sin diagnosticar. Si algún día se vuelve a
+      # encender el modelo en este servicio, esto vuelve a "true"; las dos cosas van juntas.
       - key: OLLANA_GUARD_LLM_ENABLED
-        value: "true"
+        value: "false"
   # Cron: refresca la clasificación/próximo rival de TODOS los clubes sin intervención.
   # Se despliega solo con la rama (autoDeploy). Horario en UTC: 06:00 y 20:00 a diario
   # (madrugada y tras la franja de partidos de fin de semana en España).
@@ -135,6 +138,14 @@ services:
       - key: RUN_COLLECTSTATIC
         value: "false"
       - key: INSTALL_OLLAMA
+        value: "false"
+      # Explícito, no por defecto: el apagado del modelo local se escribió sólo en el web y aquí
+      # seguía encendido por omisión. Ver el comentario de `local_llm.local_llm_config`.
+      - key: ENABLE_OLLAMA
+        value: "false"
+      - key: AI_TRAINER_LOCAL_LLM_ENABLED
+        value: "false"
+      - key: OLLANA_GUARD_LLM_ENABLED
         value: "false"
       - key: INSTALL_PLAYWRIGHT_BROWSERS
         value: "false"
@@ -163,6 +174,17 @@ services:
       - key: PYTHONUNBUFFERED
         value: "1"
       - key: RUN_MIGRATIONS
+        value: "false"
+      # Modelo local APAGADO también aquí, y explícito. Estaba encendido por omisión: el apagado
+      # del 2026-08-07 sólo se escribió en el servicio web, y este worker es justo donde el
+      # operador corre cada 30 s y sondea el modelo en cada vuelta.
+      - key: ENABLE_OLLAMA
+        value: "false"
+      - key: INSTALL_OLLAMA
+        value: "false"
+      - key: AI_TRAINER_LOCAL_LLM_ENABLED
+        value: "false"
+      - key: OLLANA_GUARD_LLM_ENABLED
         value: "false"
       # --- Autogeneración de avatares (reusa este worker; sin servicio nuevo) ---
       # DESACTIVADO: generate_player_avatars carga insightface+onnx (+modelo 554MB) y, sumado a
