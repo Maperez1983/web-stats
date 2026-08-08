@@ -62,7 +62,11 @@ _render_gate = threading.Semaphore(1)
 RENDER_GATE_TIMEOUT_SECONDS = 900
 
 # Tiempo de espera del navegador, en función de lo cargado que esté el dibujo (ver `_timeouts_for`).
-SNAPSHOT_TIMEOUT_BASE_MS = 60000
+# 60 s se quedaban cortos: el log lleva desde el 2 de agosto repitiendo "render vacio" en tareas
+# de 12-19 objetos, que no son pesadas. La pagina del editor es grande y en el contenedor arranca
+# despacio, asi que el suelo sube a 90 s. Lo que cuesta un fallo aqui es una tarjeta en verde
+# durante horas; lo que cuesta esperar 30 s mas es nada, porque la foto va en segundo plano.
+SNAPSHOT_TIMEOUT_BASE_MS = 90000
 SNAPSHOT_TIMEOUT_PER_OBJECT_MS = 180
 SNAPSHOT_TIMEOUT_MAX_MS = 240000
 
@@ -249,7 +253,11 @@ def _render_and_store(task_id: int, url: str, cookies: list, sig: str, object_co
     from django.db import connection
 
     try:
-        png = _render(url, cookies, object_count)
+        try:
+            png = _render(url, cookies, object_count)
+        except _ColaLlena:
+            _note(task_id, f"no se intento: cola llena (espera de {RENDER_GATE_TIMEOUT_SECONDS}s agotada)")
+            return
         if not png:
             logger.warning("board snapshot: render vacio para tarea %s", task_id)
             timeout_ms, _settle = _timeouts_for(object_count)
@@ -283,10 +291,17 @@ def _render_and_store(task_id: int, url: str, cookies: list, sig: str, object_co
             pass
 
 
+class _ColaLlena(Exception):
+    """La foto no se intento: habia otras delante y se agoto la espera en la cola."""
+
+
 def _render(url: str, cookies: list, object_count: int = 0) -> bytes | None:
     if not _render_gate.acquire(timeout=RENDER_GATE_TIMEOUT_SECONDS):
         logger.warning("board snapshot: cola llena, se salta esta foto")
-        return None
+        # Se pierde el motivo mas util que hay: no es que la foto fallara, es que ni se intento
+        # porque delante habia otras. Sin esto, el diagnostico dice "(sin motivo guardado)" y
+        # parece una averia cuando es una cola.
+        raise _ColaLlena()
     try:
         return _render_locked(url, cookies, object_count)
     finally:
