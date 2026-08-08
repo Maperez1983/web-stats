@@ -1482,24 +1482,36 @@
               <th>Nombre</th>
               <th>Posición</th>
               <th>Edad</th>
+              {% comment %}"Estado" decía Activo/Inactivo y "Temporada" Confirmado/Pendiente: dos
+              columnas con nombres que se pisan para una sola pregunta -¿cuenta este jugador esta
+              temporada?-. Ahora es una.{% endcomment %}
               <th>Estado</th>
               <th>Ficha fed.</th>
-              <th>Temporada</th>
               <th>Acción</th>
             </tr>
           </thead>
           <tbody>
+            {% comment %}Los dados de baja tienen su propia pestaña ("Bajas"), con su botón de
+            Reactivar. Aquí salían igual, con una fila entera de mandos que no les aplican: en su
+            plantilla eran 4 de 30 filas ocupando sitio y confundiendo el recuento.{% endcomment %}
             {% for player in players %}
+            {% if player.is_active %}
             <tr>
               <td>{{ player.number|default:"--" }}</td>
               <td><a style="color:var(--prod-text, var(--prod-text)); text-decoration:none;" href="{% url 'player-detail' player_id=player.id %}{% if active_club_season %}?club_season_id={{ active_club_season.id }}{% endif %}">{{ player.name|display_text }}</a></td>
               <td>{{ player.position|default:"-"|display_position }}</td>
               <td>{% if player.age %}{{ player.age }}{% else %}-{% endif %}</td>
               <td>
-                {% if player.is_active %}
-                <span class="badge ok">Activo</span>
+                {% if not player.is_active %}
+                <span class="badge off">De baja</span>
+                {% elif active_club_season and player.season_confirmed %}
+                <span class="badge ok">Confirmado</span>
+                {% elif active_club_season and player.season_status == 'left' or active_club_season and player.season_status == 'inactive' %}
+                <span class="badge off">{{ player.season_status_label }}</span>
+                {% elif active_club_season %}
+                <span class="badge off" title="En plantilla, pero sin confirmar para esta temporada">Pendiente</span>
                 {% else %}
-                <span class="badge off">Inactivo</span>
+                <span class="badge ok">Activo</span>
                 {% endif %}
                 {% comment %}Aviso de figura. Aqui se mira SOLO el campo de la BD (gratis): preguntar por la foto son cuatro consultas al almacenamiento por jugador, y en un listado de 25 eso son cien. El motivo exacto -pendiente o sin foto- esta en su ficha.{% endcomment %}
                 {% if not player.avatar_generated %}<span class="badge off" title="Sin figura generada: en la pizarra sale como ficha de color. Entra en su ficha para ver por que.">Sin avatar</span>{% endif %}
@@ -1518,19 +1530,6 @@
                 </form>
                 {% else %}
                   {% if player.has_federative_license %}<span class="badge ok">Federado</span>{% else %}<span class="badge off">—</span>{% endif %}
-                {% endif %}
-              </td>
-              <td>
-	                {% if active_club_season %}
-	                  {% if player.season_confirmed %}
-	                    <span class="badge ok">Confirmado</span>
-	                  {% elif player.season_status == 'left' or player.season_status == 'inactive' %}
-	                    <span class="badge off">{{ player.season_status_label }}</span>
-	                  {% else %}
-	                    <span class="badge off">Pendiente</span>
-	                  {% endif %}
-                {% else %}
-                  -
                 {% endif %}
               </td>
               <td>
@@ -1598,9 +1597,10 @@
                 {% endif %}
               </td>
             </tr>
+            {% endif %}
             {% empty %}
             <tr>
-              <td colspan="6">No hay jugadores en plantilla.</td>
+              <td colspan="7">No hay jugadores en plantilla.</td>
             </tr>
             {% endfor %}
           </tbody>
