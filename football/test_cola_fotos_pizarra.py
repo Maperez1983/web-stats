@@ -186,6 +186,63 @@ class RendirseSeDiceTests(ColaBase):
         self.assertEqual(shot.attempts, 0)
 
 
+class LaCapturaVaTambienALaPortadaTests(ColaBase):
+    """La peticion era "a la portada Y a la ficha". La portada no se actualizaba NUNCA.
+
+    En todo views.py `cover_data_b64` solo se lee. Y como la tarjeta de biblioteca pinta la
+    portada ANTES que la foto de la pizarra, en las 512 tareas de produccion que tienen portada
+    propia el dibujo nuevo no se veia jamas: se arreglaba la mitad invisible del problema.
+    """
+
+    def _una_foto(self):
+        """Un JPEG de verdad, que es lo que `_store` recibe."""
+        import io
+
+        from PIL import Image
+
+        buf = io.BytesIO()
+        Image.new("RGB", (2520, 2002), (40, 120, 60)).save(buf, format="JPEG", quality=80)
+        return buf.getvalue()
+
+    def test_guardar_la_foto_REESCRIBE_la_portada(self):
+        task = self._tarea()
+        task.cover_data_b64 = "data:image/jpeg;base64,LA_VIEJA"
+        task.save(update_fields=["cover_data_b64"])
+
+        fotos._store(int(task.id), self._una_foto(), fotos.board_signature(task))
+
+        task.refresh_from_db()
+        self.assertTrue(task.cover_data_b64.startswith("data:image/jpeg;base64,"))
+        self.assertNotIn("LA_VIEJA", task.cover_data_b64,
+                         "la portada sigue siendo la vieja: la tarjeta enseñará el dibujo antiguo")
+
+    def test_la_portada_no_engorda_la_tarjeta(self):
+        """El listado ya arrastro un problema de peso por meter imagenes grandes."""
+        import base64
+        import io
+
+        from PIL import Image
+
+        task = self._tarea()
+        fotos._store(int(task.id), self._una_foto(), fotos.board_signature(task))
+        task.refresh_from_db()
+
+        crudo = base64.b64decode(task.cover_data_b64.split(",", 1)[1])
+        self.assertLessEqual(Image.open(io.BytesIO(crudo)).width, fotos.COVER_MAX_WIDTH)
+
+    def test_si_la_foto_se_descarta_la_portada_NO_se_toca(self):
+        """Mismo blindaje que la imagen: una foto que no vale no puede empeorar lo que hay."""
+        task = self._tarea()
+        task.cover_data_b64 = "data:image/jpeg;base64,LA_BUENA"
+        task.save(update_fields=["cover_data_b64"])
+
+        fotos._store(int(task.id), self._una_foto(), "firma-de-otro-dibujo")
+
+        task.refresh_from_db()
+        self.assertIn("LA_BUENA", task.cover_data_b64,
+                      "se ha pisado la portada con una foto que el propio sistema descarta")
+
+
 class LaFotoNoSeHaceEnElWebTests(ColaBase):
     def test_abrir_la_ficha_no_levanta_ningun_navegador(self):
         """El motivo por el que el servidor se reiniciaba: Chromium dentro del proceso web.

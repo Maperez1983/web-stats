@@ -569,7 +569,46 @@ def _store(task_id: int, image_bytes: bytes, sig: str) -> None:
 
     ext = "jpg" if image_bytes[:2] == b"\xff\xd8" else "png"
     task.task_preview_image.save(f"task-{task_id}-board-hd.{ext}", ContentFile(image_bytes), save=False)
-    task.save(update_fields=["task_preview_image", "tactical_layout"])
+    campos = ["task_preview_image", "tactical_layout"]
+
+    # Y LA PORTADA TAMBIEN. La peticion era que la captura de la pizarra fuera "a la portada y a
+    # la ficha", y la portada NO se estaba actualizando NUNCA: en todo views.py `cover_data_b64`
+    # solo se lee. Como la tarjeta de biblioteca pinta la portada ANTES que la foto de la
+    # pizarra, en las 512 tareas que tienen portada propia el dibujo nuevo no se veia jamas, por
+    # bien que saliera la foto. Se arreglaba la mitad invisible del problema.
+    #
+    # Pisarla es seguro y es lo que se pidio: las portadas de produccion son capturas de pizarra
+    # viejas (736x476), no las portadas fotorrealistas; se comprobo mirandolas antes de tocar
+    # nada. Aqui la sustituimos por la de ahora, reducida para que la tarjeta siga siendo ligera.
+    portada = _portada_desde_foto(image_bytes)
+    if portada:
+        task.cover_data_b64 = portada
+        campos.append("cover_data_b64")
+    task.save(update_fields=campos)
+
+
+# Ancho de la portada de la tarjeta. Las que hay en produccion rondan los 736-960 px; con mas
+# solo se engorda el listado, que ya arrastro un problema de peso por meter imagenes grandes.
+COVER_MAX_WIDTH = 960
+COVER_QUALITY = 82
+
+
+def _portada_desde_foto(image_bytes: bytes) -> str:
+    """La misma foto, reducida, como data URI para `cover_data_b64`."""
+    if Image is None:
+        return ""
+    try:
+        with Image.open(io.BytesIO(image_bytes)) as foto:
+            foto = foto.convert("RGB")
+            if foto.width > COVER_MAX_WIDTH:
+                alto = max(1, round(foto.height * COVER_MAX_WIDTH / foto.width))
+                foto = foto.resize((COVER_MAX_WIDTH, alto), Image.LANCZOS)
+            buf = io.BytesIO()
+            foto.save(buf, format="JPEG", quality=COVER_QUALITY, optimize=True, progressive=True)
+        return "data:image/jpeg;base64," + base64.b64encode(buf.getvalue()).decode("ascii")
+    except Exception:
+        logger.exception("board snapshot: no se pudo hacer la portada")
+        return ""
 
 
 def snapshot_data_uri(task) -> str:
