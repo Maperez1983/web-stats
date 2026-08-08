@@ -1399,7 +1399,7 @@
               const fila = Math.floor(i / 5);
               const hecho = colocar({
                 kind: 'player_local',
-                kit: String(ficha.kit || 'titular'),
+                kit_slot: String(ficha.kit || 'local'),
                 name: String(ficha.name || ''),
                 number: String(ficha.number || ''),
                 left: 240 + col * 150,

@@ -307,11 +307,11 @@ def respuesta_orden(texto, *, tema="", jugador=None, sesion=None):
 
 # Como llama el a cada equipacion, y como se llama dentro.
 EQUIPACIONES = (
-    ("titular", ("local", "titular", "primera", "1a", "verdiblanca", "de casa")),
+    ("local", ("local", "titular", "primera", "1a", "verdiblanca", "de casa")),
     ("visitante", ("visitante", "segunda", "2a", "fuera", "amarilla")),
-    ("turquesa", ("turquesa", "tercera", "3a")),
-    ("blanca", ("blanca", "blanco")),
-    ("chandal", ("chandal", "chándal", "entreno", "entrenamiento")),
+    ("tercera", ("tercera", "3a", "turquesa", "blanca")),
+    ("entreno", ("entreno", "entrenamiento")),
+    ("chandal", ("chandal", "chándal")),
 )
 
 _PALABRAS_PIZARRA = ("mete", "meter", "coloca", "colocar", "pon", "poner", "saca", "sacar",
@@ -350,10 +350,10 @@ def leer_grupos(texto: str):
                 if p in trozo and len(p) > mejor:
                     equipacion, mejor = clave, len(p)
         if 1 <= cuantos <= 11:
-            grupos.append((cuantos, equipacion or "titular"))
+            grupos.append((cuantos, equipacion or "local"))
     return grupos
 
 
 def etiqueta_equipacion(clave: str) -> str:
-    return {"titular": "local", "visitante": "visitante", "turquesa": "turquesa",
-            "blanca": "blanca", "chandal": "de entreno"}.get(clave, clave)
+    return {"local": "local", "visitante": "visitante", "tercera": "tercera",
+            "entreno": "de entreno", "chandal": "de chándal"}.get(clave, clave)

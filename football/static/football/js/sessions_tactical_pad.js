@@ -29900,14 +29900,20 @@
               // EQUIPACION: sin esto una ficha colocada por script siempre cae en la del
               // tipo (nuestra o la del rival), y un COMODIN sale indistinguible de un jugador
               // mas. El catalogo ya tiene turquesa y blanca justo para eso.
+              // `kit_slot` es la EQUIPACION (1a, 2a, entreno...) y es lo que mira el factory;
+              // `kit` es otra cosa. Colocar una ficha por orden con la equipacion pedida no
+              // funcionaba por esto: llegaba el dato con el nombre equivocado y se ignoraba.
+              const ranura = normalizeKit2dSlot(payload.kit_slot || payload.kit || '');
               const factory = playerTokenFactory(kind, pseudo, {
                 style: styleRaw,
                 kit: safeText(payload.kit || ''),
+                kit_slot: ranura,
                 facing_deg: normalizeAngle(payload.facing_deg, 0),
               });
               if (typeof factory !== 'function') return null;
               const token = factory(left, top);
               if (!token) return null;
+              if (ranura) setObjectData(token, { token_kit_slot: ranura });
               return addObject(token);
             } catch (e) {
               try { window.__webstatsTpadLastError = String(e && e.message ? e.message : e || 'token-place-error'); } catch (err) { /* ignore */ }
