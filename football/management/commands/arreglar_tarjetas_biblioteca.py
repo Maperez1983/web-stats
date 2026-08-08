@@ -17,6 +17,8 @@ La tarjeta pinta, por este orden: PORTADA, miniatura, PDF, dibujo.
     python3 manage.py arreglar_tarjetas_biblioteca --apply
     python3 manage.py arreglar_tarjetas_biblioteca --team 3 --apply
 """
+import re
+
 from django.core.management.base import BaseCommand
 
 from football.library_repositories import is_library_session
@@ -132,8 +134,15 @@ class Command(BaseCommand):
             self.stdout.write("  (se les borra la ruta; la imagen se reconstruye desde el lienzo)")
             for tarea, motivo in rutas_rotas[:20]:
                 ruta = str(getattr(tarea.task_preview_image, "name", "") or "")
-                ajena = f"task-{tarea.id}-" not in ruta
-                pista = "  <-- es la miniatura de OTRA tarea" if ajena else ""
+                # Sólo es "de otra tarea" si el nombre lleva un id DISTINTO. El primer esquema de
+                # nombres era `task-preview-<hash>` y no llevaba id ninguno: decir de esos que son
+                # de otra tarea es acusar a los datos de algo que no ha pasado.
+                otro = re.search(r"task-(\d+)-", ruta)
+                pista = ""
+                if otro and int(otro.group(1)) != int(tarea.id):
+                    pista = f"  <-- es la miniatura de la tarea {otro.group(1)}"
+                elif not otro:
+                    pista = "  (nombre antiguo, sin id)"
                 self.stdout.write(f"  {tarea.id:>6}  {motivo:9s}  {ruta}{pista}")
 
         if not aplicar:
