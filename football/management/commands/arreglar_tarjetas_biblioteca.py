@@ -1,4 +1,4 @@
-"""Arregla las tarjetas de biblioteca que no enseñan lo que deberían. Dos averías distintas.
+"""Arregla las tarjetas de biblioteca que no enseñan lo que deberían. Tres averías distintas.
 
 La tarjeta pinta, por este orden: PORTADA, miniatura, PDF, dibujo.
 
@@ -8,7 +8,11 @@ La tarjeta pinta, por este orden: PORTADA, miniatura, PDF, dibujo.
    nada debajo NO se tocan: un campo verde es feo, pero es mejor que un hueco gris, y esa tarea
    lo que necesita es que le regeneren la portada.
 
-2) MINIATURAS QUE APUNTAN A UN FICHERO QUE NO EXISTE. Y varias apuntan al fichero de OTRA
+2) EL FICHERO DE MINIATURA ES UN CAMPO PELADO Y LA MINIATURA EMBEBIDA ESTÁ BIEN. El endpoint
+   sirve el fichero antes que la embebida, así que una miniatura buena de 80 KB se queda sin
+   ver por culpa de un fichero verde. Se borra la ruta y sale la buena.
+
+3) MINIATURAS QUE APUNTAN A UN FICHERO QUE NO EXISTE. Y varias apuntan al fichero de OTRA
    tarea: la 266 al de la 226, la 267 al de la 158. Son copias que heredaron la ruta del
    original. Se les borra la ruta rota; el endpoint de imagen reconstruye la miniatura desde
    el lienzo, que es justo lo que hace cuando no encuentra ninguna guardada.
@@ -48,7 +52,7 @@ def tiene_algo_debajo(tarea):
 
 
 class Command(BaseCommand):
-    help = "Quita las portadas que son campo pelado cuando debajo hay dibujo. No borra tareas."
+    help = "Hace que la tarjeta enseñe el dibujo cuando la imagen que sale está vacía. No borra tareas."
 
     def add_arguments(self, parser):
         parser.add_argument("--apply", action="store_true", help="Escribe (por defecto sólo propone).")
@@ -69,6 +73,7 @@ class Command(BaseCommand):
 
         # --- 2) rutas de miniatura que no existen (se recorre aparte: otro filtro) ---
         rutas_rotas = []
+        peladas_sin_recambio = []
         qs_mini = SessionTask.objects.select_related("session__microcycle__team").filter(
             deleted_at__isnull=True
         ).exclude(task_preview_image="")
@@ -81,13 +86,27 @@ class Command(BaseCommand):
             try:
                 campo.open("rb")
                 try:
-                    if not (campo.read(64) or b""):
-                        rutas_rotas.append((tarea, "vacía"))
+                    crudo = campo.read() or b""
                 finally:
                     try:
                         campo.close()
                     except Exception:
                         pass
+                if not crudo:
+                    rutas_rotas.append((tarea, "vacía"))
+                elif es_cesped_pelado(crudo):
+                    # 3) EL FICHERO ES UN CAMPO PELADO Y LA EMBEBIDA ESTÁ BIEN. El endpoint sirve
+                    # el fichero antes que la embebida, así que una miniatura buena de 80 KB se
+                    # queda sin ver por culpa de un fichero verde. Se borra la ruta y sale la
+                    # buena. Si la embebida también está pelada NO se toca: quedarse sin ninguna
+                    # es peor, y esa tarea lo que necesita es que le vuelvan a dibujar la ficha.
+                    embebida = datos_de_url(
+                        getattr(tarea, "preview_data_b64", "") or tarea.preview_embedded_url()
+                    )
+                    if embebida and not es_cesped_pelado(embebida):
+                        rutas_rotas.append((tarea, "pelada"))
+                    else:
+                        peladas_sin_recambio.append(tarea)
             except Exception:
                 rutas_rotas.append((tarea, "no existe"))
 
@@ -129,9 +148,10 @@ class Command(BaseCommand):
 
         if rutas_rotas:
             self.stdout.write(self.style.SUCCESS(
-                f"\nMiniaturas que apuntan a un fichero que no está: {len(rutas_rotas)}"
+                f"\nMiniaturas que no sirven (pelada, vacía o el fichero no está): {len(rutas_rotas)}"
             ))
-            self.stdout.write("  (se les borra la ruta; la imagen se reconstruye desde el lienzo)")
+            self.stdout.write("  (se les borra la ruta: sale la miniatura buena que ya tienen guardada,")
+            self.stdout.write("   y si no la hay, se reconstruye desde el lienzo)")
             for tarea, motivo in rutas_rotas[:20]:
                 ruta = str(getattr(tarea.task_preview_image, "name", "") or "")
                 # Sólo es "de otra tarea" si el nombre lleva un id DISTINTO. El primer esquema de
@@ -144,6 +164,13 @@ class Command(BaseCommand):
                 elif not otro:
                     pista = "  (nombre antiguo, sin id)"
                 self.stdout.write(f"  {tarea.id:>6}  {motivo:9s}  {ruta}{pista}")
+
+        if peladas_sin_recambio:
+            self.stdout.write(self.style.WARNING(
+                f"\nCon el fichero pelado y SIN recambio bueno: {len(peladas_sin_recambio)}"
+            ))
+            self.stdout.write("  (no se tocan: quedarse sin ninguna imagen es peor. Hay que redibujarlas)")
+            self.stdout.write("  " + ", ".join(str(t.id) for t in peladas_sin_recambio[:60]))
 
         if not aplicar:
             self.stdout.write(self.style.WARNING("\nPropuesta: nada escrito. Repite con --apply."))
