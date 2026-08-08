@@ -523,10 +523,108 @@ def responder_goleador(frase, equipo):
             "highlights": [str(getattr(porId.get(filas[0]["player_id"]), "name", "") or "")]}
 
 
+def es_pregunta_sancionados(frase):
+    q = _sin_tildes(frase)
+    return any(p in q for p in ("sancionado", "sancion", "sanciones", "quien no puede jugar",
+                                "quien se pierde el partido", "cumple ciclo", "tarjetas"))
+
+
+def responder_sancionados(frase, equipo):
+    """Quién no puede jugar el próximo partido.
+
+    NO se inventa el criterio: se llama a lo mismo que usa la pantalla de convocatoria
+    (`get_sanctioned_player_ids_from_previous_round` y `is_manual_sanction_active`). Si el
+    asistente contara las rojas por su cuenta, el día que cambie la regla dirían cosas
+    distintas la lista de convocatoria y el chat, y no habría forma de saber cuál miente.
+    """
+    from football.models import Player
+    from football.query_helpers import (
+        get_sanctioned_player_ids_from_previous_round,
+        is_manual_sanction_active,
+    )
+
+    por_roja = set(get_sanctioned_player_ids_from_previous_round(equipo) or set())
+    lineas = []
+    for jugador in Player.objects.filter(team=equipo, is_active=True).order_by("name"):
+        motivo = ""
+        if jugador.id in por_roja:
+            motivo = "expulsado en el último partido"
+        elif is_manual_sanction_active(jugador):
+            hasta = getattr(jugador, "manual_sanction_until", None)
+            motivo = "sanción apuntada a mano"
+            if hasta:
+                motivo += f" (hasta el {hasta.strftime('%d/%m')})"
+        if motivo:
+            lineas.append(f"· {jugador.name} — {motivo}")
+
+    if not lineas:
+        return {"message": "No tienes a nadie sancionado para el próximo partido.",
+                "highlights": ["sin sanciones"]}
+    return {"message": f"No pueden jugar ({len(lineas)}):\n" + "\n".join(lineas)
+                       + "\n\nVer: /coach/partidos/",
+            "highlights": [f"{len(lineas)} sancionados"]}
+
+
+def es_pregunta_cumpleanos(frase):
+    q = _sin_tildes(frase)
+    return any(p in q for p in ("cumpleanos", "cumple anos", "cumplen anos", "cumple los anos",
+                                "quien cumple", "cumpleaneros"))
+
+
+def responder_cumpleanos(frase, equipo):
+    from django.utils import timezone
+
+    from football.models import Player
+
+    hoy = timezone.localdate()
+    lineas = []
+    for jugador in Player.objects.filter(team=equipo, is_active=True).exclude(birth_date=None):
+        nac = jugador.birth_date
+        if nac.month != hoy.month:
+            continue
+        # La edad que cumple, no la que tiene: es el dato por el que se pregunta.
+        lineas.append((nac.day, f"· {jugador.name} — el {nac.day} cumple {hoy.year - nac.year}"))
+    if not lineas:
+        return {"message": "Este mes no cumple años nadie de la plantilla.", "highlights": []}
+    lineas.sort()
+    return {"message": f"Cumpleaños de este mes ({len(lineas)}):\n"
+                       + "\n".join(t for _, t in lineas),
+            "highlights": [f"{len(lineas)} cumpleaños"]}
+
+
+def es_pregunta_sin_ficha(frase):
+    q = _sin_tildes(frase)
+    if "ficha" not in q and "licencia" not in q:
+        return False
+    return any(p in q for p in ("sin ficha", "no tiene ficha", "no tienen ficha", "sin licencia",
+                                "no tiene licencia", "no tienen licencia", "falta la ficha",
+                                "faltan fichas", "quien no esta fichado", "sin fichar"))
+
+
+def responder_sin_ficha(frase, equipo):
+    from football.models import Player
+
+    sin = list(Player.objects.filter(team=equipo, is_active=True, has_federative_license=False)
+               .order_by("name").values_list("name", flat=True))
+    total = Player.objects.filter(team=equipo, is_active=True).count()
+    if not sin:
+        return {"message": f"Todos tienen ficha federativa ({total} jugadores).",
+                "highlights": ["todos con ficha"]}
+    return {"message": f"Sin ficha federativa ({len(sin)} de {total}):\n"
+                       + "\n".join(f"· {n}" for n in sin)
+                       + "\n\nVer: /coach/plantilla/",
+            "highlights": [f"{len(sin)} sin ficha"]}
+
+
 CONSULTAS = (
     (es_pregunta_asistencia, responder_asistencia),
     (es_pregunta_tareas_de_sesion, responder_tareas_de_sesion),
     (es_pregunta_cuantas_sesiones, responder_cuantas_sesiones),
+    # Antes que la ficha de un jugador: esa reconoce la frase por el NOMBRE que lleve dentro,
+    # y basta con que alguien se llame como una palabra corriente para que se la quede.
+    (es_pregunta_sancionados, responder_sancionados),
+    (es_pregunta_cumpleanos, responder_cumpleanos),
+    (es_pregunta_sin_ficha, responder_sin_ficha),
     (es_pregunta_jugador, responder_jugador),
     # El ULTIMO antes que el PROXIMO: "como quedo el ultimo partido" lleva la palabra
     # "partido" y la de proximo la miraria tambien.
