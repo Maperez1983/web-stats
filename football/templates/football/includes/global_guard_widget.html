@@ -171,6 +171,12 @@
         <div class="guard-composer">
           <label><textarea id="global-guard-chat-input" placeholder="Pregunta lo que necesites..."></textarea></label>
           <div class="guard-composer-actions">
+            {# Dictado. Se oculta solo si el navegador no sabe: no hay nada que instalar ni
+               que pagar, el reconocimiento va en el propio navegador y el audio no sale de tu
+               movil. En la banda no se escribe "gol de Nacho en el 34": se dice. #}
+            <button type="button" class="guard-btn" id="global-guard-chat-mic" hidden
+                    title="Dictar (el audio no sale de tu dispositivo)"
+                    aria-label="Dictar por voz">🎤 Dictar</button>
             <button type="button" class="guard-btn primary" id="global-guard-chat-send">Enviar</button>
             <button type="button" class="guard-btn" id="global-guard-chat-clear">Limpiar</button>
           </div>

@@ -22,6 +22,7 @@
   const inputEl = document.getElementById('global-guard-chat-input');
   const sendEl = document.getElementById('global-guard-chat-send');
   const clearEl = document.getElementById('global-guard-chat-clear');
+  const micEl = document.getElementById('global-guard-chat-mic');
   const suggestionsEl = document.getElementById('global-guard-suggestions');
   const commandGridEl = document.getElementById('global-guard-command-grid');
   const silentCardEl = document.getElementById('global-guard-silent-card');
@@ -1263,6 +1264,74 @@
       },
     };
   };
+  // --- DICTADO POR VOZ -----------------------------------------------------------------
+  // Va en el navegador (Web Speech API): sin servidor, sin coste y sin que el audio salga del
+  // dispositivo. Es lo que hace usable al asistente en la banda: durante un partido no vas a
+  // escribir "gol de Nacho en el 34" mirando el movil, lo dices en dos segundos.
+  //
+  // Si el navegador no lo trae, el boton no aparece. No se avisa de nada: un boton que no
+  // funciona es peor que ningun boton.
+  const montarDictado = () => {
+    const Reconocedor = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!Reconocedor || !micEl || !inputEl) return;
+    micEl.hidden = false;
+
+    let reconocedor = null;
+    let escuchando = false;
+
+    const parar = () => {
+      escuchando = false;
+      try { micEl.textContent = '🎤 Dictar'; micEl.classList.remove('is-active'); } catch (e) {}
+      try { if (reconocedor) reconocedor.stop(); } catch (e) {}
+    };
+
+    micEl.addEventListener('click', () => {
+      if (escuchando) { parar(); return; }
+      try {
+        reconocedor = new Reconocedor();
+        reconocedor.lang = 'es-ES';
+        // `continuous` a false: una frase y para. En un partido interesa dictar una accion,
+        // verla escrita y mandarla, no tener el microfono abierto todo el rato.
+        reconocedor.continuous = false;
+        reconocedor.interimResults = true;
+        reconocedor.maxAlternatives = 1;
+
+        reconocedor.onresult = (evento) => {
+          let texto = '';
+          for (let i = evento.resultIndex; i < evento.results.length; i += 1) {
+            texto += evento.results[i][0].transcript;
+          }
+          texto = String(texto || '').trim();
+          if (!texto) return;
+          inputEl.value = texto;
+          // Solo se ENVIA cuando el reconocimiento da la frase por cerrada. Con los resultados
+          // provisionales se mandarian medias frases.
+          const cerrado = evento.results[evento.results.length - 1].isFinal;
+          if (cerrado) {
+            parar();
+            try { sendEl && sendEl.click(); } catch (e) {}
+          }
+        };
+        reconocedor.onerror = (evento) => {
+          parar();
+          const motivo = String(evento && evento.error || '');
+          if (motivo === 'not-allowed' || motivo === 'service-not-allowed') {
+            try { statusEl.textContent = 'Necesito permiso para el micrófono.'; } catch (e) {}
+          }
+        };
+        reconocedor.onend = parar;
+
+        reconocedor.start();
+        escuchando = true;
+        micEl.textContent = '● Escuchando';
+        micEl.classList.add('is-active');
+      } catch (error) {
+        parar();
+      }
+    });
+  };
+  try { montarDictado(); } catch (error) { /* que el chat funcione igual */ }
+
   const currentPageContext = () => ({
     ...(() => {
       const runtimeSnapshot = gatherRuntimeSnapshot();

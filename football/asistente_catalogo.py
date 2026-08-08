@@ -588,6 +588,154 @@ def _crear_sesion_ejecuta(datos, ctx):
                   + f".\n\nAbrir: /coach/sesiones/sesion/{int(ses.id)}/")
 
 
+# ---- cortar clips de un partido a partir del registro de acciones -----------------------------
+#
+# LA IDEA, que es lo que la hace posible sin que ninguna IA mire el video: si los cornees estan
+# en el REGISTRO DE ACCIONES con su minuto, y el video tiene marcado el saque inicial
+# (`kickoff_ms`), entonces el momento exacto de cada corner en el video es una resta. No hay que
+# reconocer nada: ya lo apuntaste tu durante el partido.
+
+SEGUNDOS_ANTES = 8      # contexto: un corner empieza antes del saque
+SEGUNDOS_DESPUES = 12
+
+
+def _cortar_reconoce(frase):
+    return (dice(frase, "corta", "cortar", "cortame", "saca", "sacame", "hazme", "genera")
+            and contiene(frase, "clip", "clips", "corte", "cortes", "video", "jugadas"))
+
+
+def _que_acciones(frase):
+    """Qué acciones pide: devuelve (palabras a buscar, cómo llamarlas)."""
+    q = sin_tildes(frase)
+    catalogo = (
+        (("corner", "corners", "esquina", "esquinas"), "córners"),
+        (("gol", "goles"), "goles"),
+        (("amarilla", "amarillas", "tarjeta", "tarjetas"), "tarjetas"),
+        (("falta", "faltas"), "faltas"),
+        (("tiro", "tiros", "remate", "remates", "ocasion", "ocasiones"), "remates"),
+        (("penalti", "penaltis"), "penaltis"),
+        (("cambio", "cambios"), "cambios"),
+    )
+    for palabras, etiqueta in catalogo:
+        if any(re.search(r"\b" + p + r"\b", q) for p in palabras):
+            return list(palabras), etiqueta
+    return [], ""
+
+
+def _partido_referido(frase, equipo):
+    """El partido del que habla: por el nombre del rival, o el último jugado."""
+    from django.db.models import Q
+    from django.utils import timezone
+
+    from football.models import Match
+
+    q = sin_tildes(frase)
+    partidos = Match.objects.select_related("home_team", "away_team").filter(
+        Q(home_team=equipo) | Q(away_team=equipo)
+    )
+    for m in partidos.order_by("-date")[:60]:
+        for lado in (m.home_team, m.away_team):
+            nombre = sin_tildes(str(getattr(lado, "name", "") or ""))
+            if len(nombre) >= 4 and nombre in q and int(getattr(lado, "id", 0)) != int(equipo.id):
+                return m
+    return partidos.filter(date__lte=timezone.localdate()).order_by("-date", "-id").first()
+
+
+def _cortar_prepara(frase, ctx):
+    from football.models import MatchEvent, RivalVideo
+
+    palabras, etiqueta = _que_acciones(frase)
+    if not palabras:
+        return ("¿Qué quieres que corte? Dímelo así: «córtame los córners del partido contra "
+                "La Mosca».", None)
+    partido = _partido_referido(frase, ctx["equipo"])
+    if partido is None:
+        return "No encuentro ese partido.", None
+
+    video = (
+        RivalVideo.objects.filter(team=ctx["equipo"], match=partido)
+        .order_by("-is_base", "-id")
+        .first()
+    )
+    if video is None:
+        return (f"El partido contra {_rival_del(partido, ctx['equipo'])} no tiene vídeo subido."
+                "\n\nSubirlo: /coach/analisis/", None)
+    if not getattr(video, "kickoff_ms", None):
+        # Sin el saque inicial marcado no hay forma de traducir el minuto 34 a un momento del
+        # video: el video empieza cuando le dio a grabar, no cuando pito el arbitro.
+        return (f"El vídeo «{str(video.title or '')[:40]}» no tiene marcado el saque inicial, "
+                "así que no sé a qué momento del vídeo corresponde cada minuto del partido.\n\n"
+                "Márcalo en el estudio y te los corto: /coach/analisis/", None)
+
+    filtro = None
+    from django.db.models import Q
+
+    for p_ in palabras:
+        cond = Q(event_type__icontains=p_) | Q(kind__icontains=p_) | Q(observation__icontains=p_)
+        filtro = cond if filtro is None else (filtro | cond)
+    acciones = list(
+        MatchEvent.objects.filter(match=partido).filter(filtro).order_by("minute", "id")[:40]
+    )
+    if not acciones:
+        return (f"No hay {etiqueta} apuntados en el registro de ese partido. "
+                "Sin registro no hay nada que cortar.", None)
+    return (f"Voy a crear {len(acciones)} clip{'s' if len(acciones) != 1 else ''} de {etiqueta} "
+            f"del partido contra {_rival_del(partido, ctx['equipo'])}, sobre el vídeo "
+            f"«{str(video.title or '')[:34]}». ¿Confirmo?",
+            {"video_id": int(video.id), "evento_ids": [int(a.id) for a in acciones],
+             "etiqueta": etiqueta, "equipo_id": int(ctx["equipo"].id)})
+
+
+def _rival_del(partido, equipo):
+    try:
+        otro = partido.away_team if int(partido.home_team_id) == int(equipo.id) else partido.home_team
+        return str(getattr(otro, "name", "") or "rival")
+    except Exception:
+        return "rival"
+
+
+def _cortar_ejecuta(datos, ctx):
+    from football.models import MatchEvent, RivalVideo, Team, VideoClip
+
+    video = RivalVideo.objects.filter(id=int(datos["video_id"])).first()
+    equipo = Team.objects.filter(id=int(datos["equipo_id"])).first()
+    if video is None or equipo is None:
+        return False, "Ya no encuentro ese vídeo."
+    arranque = int(getattr(video, "kickoff_ms", 0) or 0)
+    segunda = int(getattr(video, "second_half_ms", 0) or 0)
+    acciones = list(MatchEvent.objects.filter(id__in=datos.get("evento_ids") or []).order_by("minute", "id"))
+    creados = 0
+    for a in acciones:
+        minuto = int(getattr(a, "minute", 0) or 0)
+        # La SEGUNDA PARTE tiene su propia marca: el descanso no dura lo mismo en el video que
+        # en el partido, asi que del 45 en adelante se cuenta desde ahi.
+        if minuto > 45 and segunda:
+            base, desde = segunda, minuto - 45
+        else:
+            base, desde = arranque, minuto
+        centro = base + desde * 60000
+        entrada = max(0, centro - SEGUNDOS_ANTES * 1000)
+        salida = centro + SEGUNDOS_DESPUES * 1000
+        try:
+            VideoClip.objects.create(
+                team=equipo,
+                video=video,
+                owner_user=ctx.get("usuario") if getattr(ctx.get("usuario"), "is_authenticated", False) else None,
+                title=f"{datos.get('etiqueta', 'Acción').capitalize()} {minuto}'"[:120],
+                in_ms=int(entrada),
+                out_ms=int(salida),
+                created_by=ctx.get("usuario") if getattr(ctx.get("usuario"), "is_authenticated", False) else None,
+            )
+            creados += 1
+        except Exception:
+            logger.debug("no se pudo crear un clip", exc_info=True)
+    if not creados:
+        return False, "No he podido crear los clips."
+    return True, (f"Creados {creados} clips de {datos.get('etiqueta', '')}. "
+                  f"Cada uno arranca {SEGUNDOS_ANTES} s antes de la acción."
+                  "\n\nVer: /coach/analisis/")
+
+
 CATALOGO = (
     {"clave": "mover_bloque", "reconoce": _mover_bloque_reconoce,
      "prepara": _mover_bloque_prepara, "ejecuta": _mover_bloque_ejecuta},
@@ -606,6 +754,8 @@ CATALOGO = (
      "prepara": _duracion_prepara, "ejecuta": _duracion_ejecuta},
     {"clave": "crear_sesion", "reconoce": _crear_sesion_reconoce,
      "prepara": _crear_sesion_prepara, "ejecuta": _crear_sesion_ejecuta},
+    {"clave": "cortar_clips", "reconoce": _cortar_reconoce,
+     "prepara": _cortar_prepara, "ejecuta": _cortar_ejecuta},
 )
 
 
